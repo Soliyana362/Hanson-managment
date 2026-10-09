@@ -9,11 +9,40 @@ const DEFAULT_POSTGRES_PASSWORDS = new Set(['postgres', 'password', 'pass', 'adm
 // so a DATABASE_URL in .env silently bypassed it and the app happily ran on the
 // stock `postgres:postgres` superuser. The check now runs on whichever
 // connection string wins.
+// Paste artifacts (surrounding quotes, stray newlines/spaces) otherwise break
+// both the password check and pg itself, so normalize once up front.
+function normalizeConnectionString(raw) {
+  let value = String(raw).trim();
+  const quote = value[0];
+  if ((quote === '"' || quote === "'") && value.length >= 2 && value.endsWith(quote)) {
+    value = value.slice(1, -1).trim();
+  }
+  return value.replace(/\s+/g, '');
+}
+
+function redactConnectionString(connectionString) {
+  return connectionString.replace(/(:\/\/[^:@/]*:)[^@]*@/, '$1***@');
+}
+
+function parsePassword(connectionString) {
+  try {
+    // Handles percent-encoding and unusual characters a regex can miss.
+    const parsed = new URL(connectionString);
+    if (parsed.password) return parsed.password;
+  } catch {
+    // Fall through to the regex for non-URL-parseable connection strings.
+  }
+  const match = connectionString.match(/^postgres(?:ql)?:\/\/[^:/@]+:([^@]*)@/i);
+  return match ? match[1] : null;
+}
+
 function assertNonDefaultPassword(connectionString, source) {
-  const match = String(connectionString).match(/^postgres(?:ql)?:\/\/[^:/@\s]+:([^@\s]*)@/i);
-  const password = match ? match[1] : null;
+  const password = parsePassword(connectionString);
   if (password === null) {
-    throw new Error(`Could not parse a database password out of ${source}`);
+    throw new Error(
+      `Could not parse a database password out of ${source} (got ${redactConnectionString(connectionString)}). ` +
+      'Expected a URL like postgresql://user:password@host/database.'
+    );
   }
   const decoded = (() => { try { return decodeURIComponent(password); } catch { return password; } })();
   if (DEFAULT_POSTGRES_PASSWORDS.has(String(decoded).trim().toLowerCase())) {
@@ -27,8 +56,10 @@ function assertNonDefaultPassword(connectionString, source) {
 function buildPostgres() {
   const { Pool } = require('pg');
 
-  const connectionString = process.env.DATABASE_URL
-    || `postgresql://${process.env.PGUSER || 'postgres'}:${process.env.PGPASSWORD || ''}@${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || 'glorious_hr'}`;
+  const connectionString = normalizeConnectionString(
+    process.env.DATABASE_URL
+      || `postgresql://${process.env.PGUSER || 'postgres'}:${process.env.PGPASSWORD || ''}@${process.env.PGHOST || 'localhost'}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || 'glorious_hr'}`
+  );
 
   assertNonDefaultPassword(connectionString, process.env.DATABASE_URL ? 'DATABASE_URL' : 'PGPASSWORD');
 

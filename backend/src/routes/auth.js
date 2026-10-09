@@ -113,6 +113,17 @@ function passwordResetInsertSql() {
   return sql;
 }
 
+// The web app is served from a different origin than the API, and the
+// csrf_token cookie is bound to the API's own domain, so document.cookie in
+// the browser cannot read it cross-site. Hand the token back in the response
+// body as well so the client can echo it in the X-CSRF-Token header. This is
+// a safe GET, so it is exempt from the CSRF check itself.
+router.get('/csrf', (req, res) => {
+  const csrfToken = createCsrfToken();
+  res.cookie('csrf_token', csrfToken, cookieOptions(false));
+  res.json({ csrfToken });
+});
+
 router.post('/login', async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);

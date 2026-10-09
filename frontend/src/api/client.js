@@ -2,6 +2,16 @@ import axios from 'axios';
 
 const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
+// When the frontend and API are on different origins, the csrf_token cookie is
+// scoped to the API's domain and is invisible to document.cookie here. The API
+// therefore also returns the token in response bodies, and we keep it in memory
+// so it can be echoed back in the X-CSRF-Token header.
+let csrfToken = '';
+
+export function setCsrfToken(token) {
+  csrfToken = typeof token === 'string' ? token : '';
+}
+
 function readCookie(name) {
   const prefix = `${encodeURIComponent(name)}=`;
   return document.cookie
@@ -20,8 +30,8 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const method = String(config.method || 'get').toLowerCase();
   if (!['get', 'head', 'options'].includes(method)) {
-    const csrfToken = readCookie('csrf_token');
-    if (csrfToken) config.headers['X-CSRF-Token'] = decodeURIComponent(csrfToken);
+    const token = csrfToken || readCookie('csrf_token');
+    if (token) config.headers['X-CSRF-Token'] = decodeURIComponent(token);
   }
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) delete config.headers['Content-Type'];
   return config;

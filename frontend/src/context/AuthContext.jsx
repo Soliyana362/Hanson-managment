@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import api from '../api/client';
+import api, { setCsrfToken } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -9,6 +9,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
+    api.get('/auth/csrf')
+      .then((res) => setCsrfToken(res.data.csrfToken))
+      .catch(() => {});
     api.get('/auth/me')
       .then((res) => {
         if (active) setUser(res.data);
@@ -30,6 +33,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
+    setCsrfToken(res.data.csrfToken);
     setUser(res.data.user);
     return res.data.user;
   };
@@ -38,6 +42,7 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/auth/logout');
     } finally {
+      setCsrfToken('');
       setUser(null);
     }
   };

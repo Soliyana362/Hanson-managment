@@ -1,8 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
-const { issueEmailVerification } = require('../services/verification');
+const { issueEmailVerification, issueAccountSetup } = require('../services/verification');
 const { sendEmailChangeNotice } = require('../services/email');
 const {
   canAccessEmployee,
@@ -208,13 +209,17 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
     const body = req.body || {};
     const role = body.role === undefined ? 'employee' : String(body.role);
     if (!canAssignRole(req.user.role, role)) return res.status(403).json({ error: 'You cannot assign that role' });
-    const password = String(body.password || '');
-    if (password.length < PASSWORD_MIN_LENGTH || password.length > 200) {
-      return res.status(400).json({ error: `Password must be between ${PASSWORD_MIN_LENGTH} and 200 characters` });
-    }
     const input = parseEmployeeInput({ ...body, role });
     await ensureDepartment(input.department_id);
     await ensureManager(input.manager_id);
+    // HR does not choose the password: when none is supplied we generate a
+    // random, unguessable placeholder and email the employee a link to set
+    // their own. A password may still be supplied by API clients if desired.
+    const providedPassword = String(body.password || '');
+    if (providedPassword && (providedPassword.length < PASSWORD_MIN_LENGTH || providedPassword.length > 200)) {
+      return res.status(400).json({ error: `Password must be between ${PASSWORD_MIN_LENGTH} and 200 characters` });
+    }
+    const password = providedPassword || crypto.randomBytes(32).toString('hex');
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, role, department_id, position, phone, gender, age, hire_date, manager_id,
@@ -228,10 +233,10 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
     const createdUser = result.rows[0];
     let emailSent = true;
     try {
-      await issueEmailVerification(createdUser);
+      await issueAccountSetup(createdUser);
     } catch (err) {
       emailSent = false;
-      console.error(`Failed to send employee verification email: ${err.message}`);
+      console.error(`Failed to send employee account setup email: ${err.message}`);
     }
     res.status(201).json({ ...createdUser, emailSent });
   } catch (err) {

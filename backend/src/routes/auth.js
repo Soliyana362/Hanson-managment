@@ -68,7 +68,12 @@ function cookieOptions(httpOnly) {
       : 'lax';
   return {
     httpOnly,
-    secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : isProduction(),
+    // The access cookie carries an 8 hour token, so it must never travel in
+    // clear text. Production forces Secure unconditionally (SameSite=None is
+    // rejected by browsers without it); development opts in with
+    // COOKIE_SECURE=true. Loopback origins such as http://localhost are
+    // treated as trustworthy, so Secure works there too.
+    secure: isProduction() ? true : process.env.COOKIE_SECURE === 'true',
     sameSite,
     path: '/',
     maxAge: sessionMaxAgeMs(),
@@ -87,17 +92,6 @@ function clearAuthCookies(res) {
   delete csrfOptions.maxAge;
   res.clearCookie('access_token', accessOptions);
   res.clearCookie('csrf_token', csrfOptions);
-}
-
-function recentLoginWindowSql() {
-  const driver = process.env.DB_DRIVER || 'sqlite';
-  if (driver === 'postgres' || driver === 'postgresql' || driver === 'pg') {
-    return "NOW() - INTERVAL '5 minutes'";
-  }
-  if (driver === 'mssql') {
-    return 'DATEADD(MINUTE, -5, GETDATE())';
-  }
-  return "datetime('now', '-5 minutes')";
 }
 
 function passwordResetInsertSql() {
@@ -169,8 +163,13 @@ router.post('/login', async (req, res) => {
     const passwordMatches = await bcrypt.compare(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
     if (!user || !passwordMatches) {
       await pool.query('INSERT INTO login_attempts (email, ip_address) VALUES ($1, $2)', [email, clientIp]);
+      // Count every failure since the last successful sign-in, not just the
+      // last 5 minutes. A sliding window let an attacker pace 5 guesses per
+      // 5 minutes indefinitely; failures now accumulate until the owner signs
+      // in (which clears the rows above), so each lockout escalates off the
+      // prior-lock count below instead of quietly expiring.
       const countRes = await pool.query(
-        `SELECT COUNT(*) AS count FROM login_attempts WHERE email = $1 AND attempted_at > ${recentLoginWindowSql()}`,
+        'SELECT COUNT(*) AS count FROM login_attempts WHERE email = $1',
         [email]
       );
       if (Number.parseInt(countRes.rows[0]?.count, 10) >= MAX_LOGIN_ATTEMPTS) {
@@ -445,7 +444,9 @@ router.post('/reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(newPassword, PASSWORD_HASH_COST);
     await client.query(
       `UPDATE users
-       SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1
+       SET password_hash = $1,
+           token_version = COALESCE(token_version, 0) + 1,
+           email_verified_at = COALESCE(email_verified_at, NOW())
        WHERE id = $2`,
       [passwordHash, resetRes.rows[0].user_id]
     );

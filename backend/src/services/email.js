@@ -141,6 +141,15 @@ async function sendPasswordResetEmail(to, firstName, token) {
   });
 }
 
+async function sendAccountSetupEmail(to, firstName, token) {
+  const link = frontendUrl(`/reset-password#token=${encodeURIComponent(token)}`);
+  await sendMail({
+    to,
+    subject: 'Set up your Hanson HR account',
+    text: `Hello ${firstName},\n\nAn account has been created for you on Hanson HR. Choose your password using this link:\n${link}\n\nThis link expires in 7 days. If you were not expecting this account, you can ignore this email.`,
+  });
+}
+
 async function sendEmailChangeNotice(to, firstName) {
   await sendMail({
     to,
@@ -149,4 +158,4 @@ async function sendEmailChangeNotice(to, firstName) {
   });
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeNotice };
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendAccountSetupEmail, sendEmailChangeNotice };

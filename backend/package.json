@@ -1,0 +1,33 @@
+{
+  "name": "glorious-hr-backend",
+  "version": "1.0.0",
+  "description": "Glorious HR Management System API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:create": "node src/db/create-db.js",
+    "db:setup": "node src/db/setup.js",
+    "db:seed": "node src/db/seed.js",
+    "db:copy": "node src/db/copy.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.22.3",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mssql": "^12.7.4",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.10",
+    "pg": "^8.13.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "sprintf-js": "file:./vendor/sprintf-js"
+  }
+}

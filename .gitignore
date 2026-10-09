@@ -1,0 +1,14 @@
+**/node_modules/
+**/dist/
+**/.env
+**/uploads/
+**/data/
+*.log
+*.err
+*.bak
+postgres-data/
+backend/login-test-body.json
+backend/login-probe.js
+*.db
+*.db-shm
+*.db-wal

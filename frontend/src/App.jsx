@@ -28,8 +28,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
       <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
-      <Route path="/reset-password" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
-      <Route path="/verify-email" element={user ? <Navigate to="/dashboard" /> : <VerifyEmail />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

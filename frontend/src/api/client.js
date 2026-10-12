@@ -41,7 +41,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     const url = err.config?.url || '';
-    const authEndpoints = ['/auth/login', '/auth/change-password', '/auth/verify-email', '/auth/resend-verification', '/auth/forgot-password', '/auth/reset-password'];
+    const authEndpoints = ['/auth/login', '/auth/me', '/auth/change-password', '/auth/verify-email', '/auth/resend-verification', '/auth/forgot-password', '/auth/reset-password'];
     const isAuthEndpoint = authEndpoints.some((endpoint) => url.includes(endpoint));
     if (err.response?.status === 401 && !isAuthEndpoint) {
       window.dispatchEvent(new Event('auth:expired'));

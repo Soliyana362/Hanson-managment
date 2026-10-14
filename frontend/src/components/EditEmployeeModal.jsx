@@ -129,8 +129,8 @@ export default function EditEmployeeModal({ profile, onClose, onSaved }) {
               <input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
             </div>
             <div className="form-group">
-              <label>{t('common.email')}</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              <label>{t('common.email')} ({t('common.optional')})</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="form-group">
               <label>{t('employees.phone')}</label>

@@ -77,8 +77,22 @@ async function migrate(driver) {
     console.log('  Marked existing users as verified.');
   }
 
+  await migrateEmailNullable(driver);
   await migrateRoles(driver);
   await migrateKpiTranslations(driver);
+}
+
+// Employees are not required to have an email address, so the sign-in column
+// must allow NULL. Postgres enforces the old NOT NULL on existing databases;
+// fixing it here keeps deployments created before this change working.
+async function migrateEmailNullable(driver) {
+  if (driver !== 'postgres' && driver !== 'postgresql' && driver !== 'pg') return;
+  try {
+    await pool.query('ALTER TABLE users ALTER COLUMN email DROP NOT NULL');
+    console.log('  Ensured users.email allows NULL.');
+  } catch (err) {
+    console.log(`  Email nullability migration skipped (${err.message})`);
+  }
 }
 
 // KPI templates and indicators are stored in English so that existing
@@ -145,7 +159,7 @@ async function migrateRoles(driver) {
     await pool.query(`
       CREATE TABLE users_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email VARCHAR(255) NOT NULL UNIQUE,
+        email VARCHAR(255) UNIQUE,
         password_hash VARCHAR(255) NOT NULL,
         first_name VARCHAR(100) NOT NULL,
         last_name VARCHAR(100) NOT NULL,

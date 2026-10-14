@@ -126,8 +126,14 @@ function parseProfileInput(body, current = {}) {
   const firstName = body.first_name === undefined ? current.first_name : requiredText(body.first_name, 'first_name', 100);
   const lastName = body.last_name === undefined ? current.last_name : requiredText(body.last_name, 'last_name', 100);
   const emailValue = body.email === undefined ? current.email : body.email;
-  const email = normalizeEmail(emailValue);
-  if (!email) throw new Error('A valid email is required');
+  // An email is not required: HR can register employees who have no email
+  // address. When one is supplied it must still be valid, and empty/absent
+  // values are stored as NULL.
+  let email = null;
+  if (emailValue !== undefined && emailValue !== null && String(emailValue).trim() !== '') {
+    email = normalizeEmail(emailValue);
+    if (!email) throw new Error('A valid email is required');
+  }
   return {
     first_name: firstName,
     last_name: lastName,
@@ -231,12 +237,17 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
         input.bank_account, input.gross_salary, input.transport_allowance, input.education]
     );
     const createdUser = result.rows[0];
-    let emailSent = true;
-    try {
-      await issueAccountSetup(createdUser);
-    } catch (err) {
-      emailSent = false;
-      console.error(`Failed to send employee account setup email: ${err.message}`);
+    // Employees registered without an email address simply have no sign-in
+    // account to set up, so skip the setup email instead of failing.
+    let emailSent = false;
+    if (createdUser.email) {
+      try {
+        await issueAccountSetup(createdUser);
+        emailSent = true;
+      } catch (err) {
+        emailSent = false;
+        console.error(`Failed to send employee account setup email: ${err.message}`);
+      }
     }
     res.status(201).json({ ...createdUser, emailSent });
   } catch (err) {
@@ -296,8 +307,10 @@ router.put('/profile', authenticate, async (req, res) => {
       if (!(await bcrypt.compare(password, current.rows[0].password_hash))) {
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
-      const duplicate = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2', [input.email, req.user.id]);
-      if (duplicate.rows[0]) return res.status(400).json({ error: 'Email already exists' });
+      if (input.email) {
+        const duplicate = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2', [input.email, req.user.id]);
+        if (duplicate.rows[0]) return res.status(400).json({ error: 'Email already exists' });
+      }
     }
     await pool.query(
       `UPDATE users SET first_name = $1, last_name = $2, email = $3, phone = $4, gender = $5, age = $6,
@@ -310,16 +323,21 @@ router.put('/profile', authenticate, async (req, res) => {
     const user = await getProfile(req.user.id);
     let emailSent = true;
     if (emailChanged) {
-      try {
-        await sendEmailChangeNotice(current.rows[0].email, `${current.rows[0].first_name} ${current.rows[0].last_name}`.trim());
-      } catch (err) {
-        console.error(`Failed to notify previous email address: ${err.message}`);
+      const previousEmail = current.rows[0].email;
+      if (previousEmail) {
+        try {
+          await sendEmailChangeNotice(previousEmail, `${current.rows[0].first_name} ${current.rows[0].last_name}`.trim());
+        } catch (err) {
+          console.error(`Failed to notify previous email address: ${err.message}`);
+        }
       }
-      try {
-        await issueEmailVerification(user);
-      } catch (err) {
-        emailSent = false;
-        console.error(`Failed to send email verification: ${err.message}`);
+      if (user.email) {
+        try {
+          await issueEmailVerification(user);
+        } catch (err) {
+          emailSent = false;
+          console.error(`Failed to send email verification: ${err.message}`);
+        }
       }
     }
     res.json({ ...user, emailSent });
@@ -358,8 +376,10 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
     }
     const privilegeChanged = current.role !== input.role || current.status !== input.status;
     if (emailChanged) {
-      const duplicate = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2', [input.email, userId]);
-      if (duplicate.rows[0]) return res.status(400).json({ error: 'Email already exists' });
+      if (input.email) {
+        const duplicate = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2', [input.email, userId]);
+        if (duplicate.rows[0]) return res.status(400).json({ error: 'Email already exists' });
+      }
     }
     await pool.query(
       `UPDATE users SET first_name = $1, last_name = $2, email = $3, phone = $4, role = $5, position = $6,
@@ -377,16 +397,20 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
     const user = await getProfile(userId);
     let emailSent = true;
     if (emailChanged) {
-      try {
-        await sendEmailChangeNotice(current.email, `${current.first_name} ${current.last_name}`.trim());
-      } catch (err) {
-        console.error(`Failed to notify previous email address: ${err.message}`);
+      if (current.email) {
+        try {
+          await sendEmailChangeNotice(current.email, `${current.first_name} ${current.last_name}`.trim());
+        } catch (err) {
+          console.error(`Failed to notify previous email address: ${err.message}`);
+        }
       }
-      try {
-        await issueEmailVerification(user);
-      } catch (err) {
-        emailSent = false;
-        console.error(`Failed to send employee email verification: ${err.message}`);
+      if (user.email) {
+        try {
+          await issueEmailVerification(user);
+        } catch (err) {
+          emailSent = false;
+          console.error(`Failed to send employee email verification: ${err.message}`);
+        }
       }
     }
     res.json({ ...publicProfile(user), emailSent, sessionsRevoked: emailChanged || privilegeChanged });

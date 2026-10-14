@@ -181,8 +181,8 @@ export default function KpiTemplateEdit() {
               <tr>
                 <th>{t('kpi.indicator')}</th>
                 <th>{t('kpi.definition')}</th>
-                <th>{t('kpi.target')}</th>
-                <th>{t('kpi.weight')}</th>
+                <th style={{ textAlign: 'right' }}>{t('kpi.target')}</th>
+                <th style={{ textAlign: 'right' }}>{t('kpi.weight')}</th>
                 <th>{t('kpi.ratingCriteria')}</th>
                 {isNew && <th style={{ width: '90px' }}>{t('common.actions')}</th>}
               </tr>
@@ -209,17 +209,17 @@ export default function KpiTemplateEdit() {
                         style={{ width: '100%', padding: '6px 8px', fontSize: '0.85rem' }}
                       />
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'right' }}>
                       <input
                         type="number"
                         min="0"
                         step="any"
                         value={row.target}
                         onChange={(e) => updateRow(row.key, 'target', parseNumber(e.target.value))}
-                        style={{ width: '100px', padding: '6px 8px' }}
+                        style={{ width: '100px', padding: '6px 8px', textAlign: 'right' }}
                       />
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'right' }}>
                       <input
                         type="number"
                         min="0"
@@ -227,7 +227,7 @@ export default function KpiTemplateEdit() {
                         step="1"
                         value={row.weight}
                         onChange={(e) => updateRow(row.key, 'weight', parseNumber(e.target.value))}
-                        style={{ width: '80px', padding: '6px 8px' }}
+                        style={{ width: '80px', padding: '6px 8px', textAlign: 'right' }}
                       />
                     </td>
                     <td style={{ minWidth: '260px' }}>
@@ -262,7 +262,7 @@ export default function KpiTemplateEdit() {
             <tfoot>
               <tr style={{ background: '#F4F9F5', fontWeight: 700 }}>
                 <td colSpan={3} style={{ textAlign: 'right' }}>{t('kpi.weightTotal')}</td>
-                <td style={{ color: weightsValid ? undefined : '#C62828' }}>
+                <td style={{ textAlign: 'right', color: weightsValid ? undefined : '#C62828' }}>
                   <strong>{Number(weightTotal.toFixed(2))}</strong>
                 </td>
                 <td colSpan={isNew ? 2 : 1} />

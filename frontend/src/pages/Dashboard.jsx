@@ -7,6 +7,29 @@ import EmployeeStatusChart from '../components/EmployeeStatusChart';
 import PerformanceChart from '../components/PerformanceChart';
 import EmployeeFiles from '../components/EmployeeFiles';
 
+// New employees are created with a unique, random password so HR does not have
+// to invent one; the account setup email then lets the employee choose their own.
+function generatePassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*';
+  const values = new Uint32Array(16);
+  window.crypto.getRandomValues(values);
+  return Array.from(values, (n) => chars[n % chars.length]).join('');
+}
+
+function emptyEmployeeForm() {
+  const password = generatePassword();
+  return {
+    first_name: '', last_name: '', email: '',
+    role: 'employee', department_id: '', department_other: '', position: '', hire_date: '', phone: '',
+    gender: '', age: '',
+    tin_number: '', pension_number: '', emergency_contact: '', bank_account: '',
+    gross_salary: '', transport_allowance: '',
+    education: '', education_other: '',
+    manager_id: '',
+    password, confirm_password: password,
+  };
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { t, formatNumber } = useLanguage();
@@ -18,16 +41,7 @@ export default function Dashboard() {
   const [formSuccess, setFormSuccess] = useState('');
   const [attachFiles, setAttachFiles] = useState([]);
   const attachInputRef = useRef(null);
-  const [form, setForm] = useState({
-    first_name: '', last_name: '', email: '',
-    role: 'employee', department_id: '', department_other: '', position: '', hire_date: '', phone: '',
-    gender: '', age: '',
-    tin_number: '', pension_number: '', emergency_contact: '', bank_account: '',
-    gross_salary: '', transport_allowance: '',
-    education: '', education_other: '',
-    manager_id: '',
-    password: '', confirm_password: '',
-  });
+  const [form, setForm] = useState(emptyEmployeeForm);
 
   // `value` is what gets persisted to the database, so it stays English.
   const EDUCATION_OPTIONS = [
@@ -104,15 +118,7 @@ export default function Dashboard() {
           : t('employees.addedEmailSent')
       );
       setAttachFiles([]);
-      setForm({
-        first_name: '', last_name: '', email: '',
-        role: 'employee', department_id: '', department_other: '', position: '', hire_date: '', phone: '',
-        gender: '', age: '',
-        tin_number: '', pension_number: '', emergency_contact: '', bank_account: '',
-        gross_salary: '', transport_allowance: '',
-        education: '', education_other: '',
-        password: '', confirm_password: '',
-      });
+      setForm(emptyEmployeeForm());
       api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
     } catch (err) {
       setFormError(err.response?.data?.error || t('employees.addFailed'));

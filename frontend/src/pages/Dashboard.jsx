@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [attachFiles, setAttachFiles] = useState([]);
@@ -24,6 +25,8 @@ export default function Dashboard() {
     tin_number: '', pension_number: '', emergency_contact: '', bank_account: '',
     gross_salary: '', transport_allowance: '',
     education: '', education_other: '',
+    manager_id: '',
+    password: '', confirm_password: '',
   });
 
   // `value` is what gets persisted to the database, so it stays English.
@@ -56,6 +59,9 @@ export default function Dashboard() {
     setFormSuccess('');
     setAttachFiles([]);
     api.get('/users/departments').then((res) => setDepartments(res.data)).catch(console.error);
+    api.get('/users')
+      .then((res) => setManagers(res.data.filter((u) => ['manager', 'hr', 'admin', 'coo'].includes(u.role))))
+      .catch(console.error);
     setShowAdd(true);
   };
 
@@ -64,7 +70,15 @@ export default function Dashboard() {
     setFormError('');
     setFormSuccess('');
     try {
-      const { education, education_other, department_id, department_other, ...rest } = form;
+      if (form.password.length < 12 || form.password.length > 200) {
+        setFormError(t('employees.passwordTooShort'));
+        return;
+      }
+      if (form.password !== form.confirm_password) {
+        setFormError(t('employees.passwordMismatch'));
+        return;
+      }
+      const { education, education_other, department_id, department_other, confirm_password, ...rest } = form;
       let deptId = department_id;
       if (department_id === 'other') {
         if (!department_other.trim()) {
@@ -97,6 +111,7 @@ export default function Dashboard() {
         tin_number: '', pension_number: '', emergency_contact: '', bank_account: '',
         gross_salary: '', transport_allowance: '',
         education: '', education_other: '',
+        password: '', confirm_password: '',
       });
       api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
     } catch (err) {
@@ -223,11 +238,46 @@ export default function Dashboard() {
                   <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
                 </div>
                 <div className="form-group">
+                  <label>{t('employees.password')}</label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    required
+                    minLength={12}
+                    maxLength={200}
+                    autoComplete="new-password"
+                    placeholder={t('employees.passwordHint')}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('employees.confirmPassword')}</label>
+                  <input
+                    type="password"
+                    value={form.confirm_password}
+                    onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
+                    required
+                    minLength={12}
+                    maxLength={200}
+                    autoComplete="new-password"
+                    placeholder={t('employees.passwordHint')}
+                  />
+                </div>
+                <div className="form-group">
                   <label>{t('common.role')}</label>
                   <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                     <option value="employee">{t('roles.employee')}</option>
                     <option value="manager">{t('roles.manager')}</option>
                     <option value="hr">{t('roles.hr')}</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>{t('common.manager')}</label>
+                  <select value={form.manager_id} onChange={(e) => setForm({ ...form, manager_id: e.target.value })}>
+                    <option value="">{t('common.notSet')}</option>
+                    {managers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">

@@ -45,6 +45,7 @@ function CustomSelect({ value, label, onChange, options, placeholder }) {
 export default function EditEmployeeModal({ profile, onClose, onSaved }) {
   const { t } = useLanguage();
   const [departments, setDepartments] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -56,6 +57,7 @@ export default function EditEmployeeModal({ profile, onClose, onSaved }) {
     age: profile.age ?? '',
     role: profile.role || 'employee',
     position: profile.position || '',
+    manager_id: profile.manager_id != null ? String(profile.manager_id) : '',
     department_id: profile.department_id != null ? String(profile.department_id) : '',
     department_other: '',
     status: profile.status || 'active',
@@ -72,6 +74,9 @@ export default function EditEmployeeModal({ profile, onClose, onSaved }) {
 
   useEffect(() => {
     api.get('/users/departments').then((res) => setDepartments(res.data)).catch(() => {});
+    api.get('/users')
+      .then((res) => setManagers(res.data.filter((u) => ['manager', 'hr', 'admin', 'coo'].includes(u.role) && u.id !== profile.id)))
+      .catch(() => {});
   }, []);
 
   const handleSave = async (e) => {
@@ -146,6 +151,15 @@ export default function EditEmployeeModal({ profile, onClose, onSaved }) {
               <label>{t('employees.role')}</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                 {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{labelFor(ROLE_KEYS, r, t)}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>{t('common.manager')}</label>
+              <select value={form.manager_id} onChange={(e) => setForm({ ...form, manager_id: e.target.value })}>
+                <option value="">{t('common.notSet')}</option>
+                {managers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">

@@ -47,7 +47,7 @@ export default function KpiTemplates() {
   return (
     <div className="page">
       <h1>{t('kpi.templatesTitle')}</h1>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
         <p style={{ margin: 0 }}>{t('kpi.templatesSubtitle')}</p>
         <Link to="/kpi/templates/new" className="btn btn-primary">
           {t('kpi.newTemplate')}

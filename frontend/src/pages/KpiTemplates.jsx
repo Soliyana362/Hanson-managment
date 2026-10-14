@@ -15,6 +15,7 @@ export default function KpiTemplates() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null);
 
   const canDelete = ['hr', 'admin', 'manager'].includes(user?.role);
 
@@ -29,14 +30,15 @@ export default function KpiTemplates() {
 
   useEffect(load, []);
 
-  const handleDelete = async (template) => {
-    const label = templateName(template, t, language);
-    if (!window.confirm(t('kpi.deleteTemplateConfirm', { name: label }))) return;
+  const handleDelete = async () => {
+    const template = confirmTarget;
+    if (!template) return;
     setDeletingId(template.id);
     setError('');
     try {
       await api.delete(`/kpi/templates/${template.id}`);
       setTemplates((prev) => prev.filter((row) => row.id !== template.id));
+      setConfirmTarget(null);
     } catch (err) {
       setError(err.response?.data?.error || t('kpi.deleteFailed'));
     } finally {
@@ -97,7 +99,7 @@ export default function KpiTemplates() {
                         <button
                           type="button"
                           className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(template)}
+                          onClick={() => setConfirmTarget(template)}
                           disabled={deletingId === template.id}
                         >
                           {deletingId === template.id ? t('kpi.deleting') : t('kpi.deleteTemplate')}
@@ -111,6 +113,37 @@ export default function KpiTemplates() {
           </div>
         )}
       </div>
+
+      {confirmTarget && (
+        <div className="modal-overlay" onClick={() => (deletingId ? null : setConfirmTarget(null))}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('kpi.deleteTemplate')}</h3>
+            </div>
+            <p style={{ margin: '0 0 20px' }}>
+              {t('kpi.deleteTemplateConfirm', { name: templateName(confirmTarget, t, language) })}
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setConfirmTarget(null)}
+                disabled={deletingId === confirmTarget.id}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDelete}
+                disabled={deletingId === confirmTarget.id}
+              >
+                {deletingId === confirmTarget.id ? t('kpi.deleting') : t('common.yes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

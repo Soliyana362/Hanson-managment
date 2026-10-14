@@ -370,7 +370,7 @@ export default {
     useTemplate: 'ቅርጹን ተጠቅም',
     actions: 'እርምጃዎች',
     role: 'የሥራ ድርሻ',
-    deleteTemplateConfirm: 'የ"{name}" ቅርጹን እና ሁሉንም አመለካከቶቹን አጥፋት ይፈልጋሉ?',
+    deleteTemplateConfirm: 'የ"{name}" ቅርጹን ማጥፋት እንደሚፈልጉ እርግጠኛ ነዎት? ይህ ሁሉንም አመለካከቶቹንም ያስወግዳል።',
     deleteFailed: 'ቅርጹን ማጥፋት አልተቻለም',
     definition: 'ትርጉም',
     target: 'ግብ',

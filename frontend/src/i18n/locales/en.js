@@ -370,7 +370,7 @@ export default {
     useTemplate: 'Use Template',
     actions: 'Actions',
     role: 'Role',
-    deleteTemplateConfirm: 'Delete the template "{name}" and all of its indicators?',
+    deleteTemplateConfirm: 'Are you sure you want to delete the template "{name}"? This also removes all of its indicators.',
     deleteFailed: 'Failed to delete the template',
     definition: 'Definition',
     target: 'Target',

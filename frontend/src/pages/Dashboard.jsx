@@ -84,14 +84,6 @@ export default function Dashboard() {
     setFormError('');
     setFormSuccess('');
     try {
-      if (form.password.length < 12 || form.password.length > 200) {
-        setFormError(t('employees.passwordTooShort'));
-        return;
-      }
-      if (form.password !== form.confirm_password) {
-        setFormError(t('employees.passwordMismatch'));
-        return;
-      }
       const { education, education_other, department_id, department_other, confirm_password, ...rest } = form;
       let deptId = department_id;
       if (department_id === 'other') {
@@ -242,32 +234,6 @@ export default function Dashboard() {
                 <div className="form-group">
                   <label>{t('common.email')}</label>
                   <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-                </div>
-                <div className="form-group">
-                  <label>{t('employees.password')}</label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    required
-                    minLength={12}
-                    maxLength={200}
-                    autoComplete="new-password"
-                    placeholder={t('employees.passwordHint')}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{t('employees.confirmPassword')}</label>
-                  <input
-                    type="password"
-                    value={form.confirm_password}
-                    onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
-                    required
-                    minLength={12}
-                    maxLength={200}
-                    autoComplete="new-password"
-                    placeholder={t('employees.passwordHint')}
-                  />
                 </div>
                 <div className="form-group">
                   <label>{t('common.role')}</label>

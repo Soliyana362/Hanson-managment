@@ -160,11 +160,12 @@ router.patch('/:id/review', authenticate, authorize('hr', 'admin', 'manager'), a
     if (status === 'approved') {
       if (['annual', 'sick'].includes(leave.leave_type)) {
         const column = leave.leave_type === 'sick' ? 'sick_leave_balance' : 'annual_leave_balance';
+        const days = Math.round(Number(leave.days_requested));
         const deducted = await client.query(
           `UPDATE users SET ${column} = ${column} - $1, status = 'on_leave'
            WHERE id = $2 AND ${column} >= $1
            RETURNING ${column}`,
-          [leave.days_requested, leave.user_id]
+          [days, leave.user_id]
         );
         if (!deducted.rows[0]) {
           await client.query('ROLLBACK');

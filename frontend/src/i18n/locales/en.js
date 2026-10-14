@@ -667,6 +667,7 @@ export default {
     typeDepartmentName: 'Type department name',
     addedEmailFailed: 'Employee added, but the account setup email could not be sent. The employee can request a new link from the login page (forgot password).',
     addedEmailSent: 'Employee added. A setup email has been sent so they can choose their password.',
+    added: 'Employee added',
     addFailed: 'Failed to add employee',
     hireDate: 'Hire Date',
     age: 'Age',

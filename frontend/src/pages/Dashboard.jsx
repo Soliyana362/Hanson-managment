@@ -105,9 +105,11 @@ export default function Dashboard() {
         }
       }
       setFormSuccess(
-        created.data.email && created.data.emailSent === false
-          ? t('employees.addedEmailFailed')
-          : t('employees.addedEmailSent')
+        !created.data.email
+          ? t('employees.added')
+          : created.data.emailSent === false
+            ? t('employees.addedEmailFailed')
+            : t('employees.addedEmailSent')
       );
       setAttachFiles([]);
       setForm(emptyEmployeeForm());

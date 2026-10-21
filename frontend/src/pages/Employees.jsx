@@ -9,17 +9,45 @@ export default function Employees() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [employees, setEmployees] = useState([]);
+  const [downloading, setDownloading] = useState(false);
   const canViewDetail = ['hr', 'admin', 'coo', 'manager'].includes(user?.role);
+  const canDownload = ['hr', 'admin'].includes(user?.role);
 
   useEffect(() => {
     api.get('/users').then((res) => setEmployees(res.data)).catch(console.error);
   }, []);
 
+  const downloadAnnualLeave = async () => {
+    setDownloading(true);
+    try {
+      const res = await api.get('/users/annual-leave', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `annual-leave-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div>
-      <div className="page-header">
-        <h1>{t('employees.title')}</h1>
-        <p>{t('employees.subtitle')}</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1>{t('employees.title')}</h1>
+          <p>{t('employees.subtitle')}</p>
+        </div>
+        {canDownload && (
+          <button className="btn btn-primary" onClick={downloadAnnualLeave} disabled={downloading}>
+            {downloading ? t('employees.downloading') : t('employees.downloadAnnualLeave')}
+          </button>
+        )}
       </div>
 
       <div className="card">

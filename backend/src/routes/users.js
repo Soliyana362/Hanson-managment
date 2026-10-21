@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { issueEmailVerification, issueAccountSetup } = require('../services/verification');
 const { sendEmailChangeNotice } = require('../services/email');
+const { leaveSummary } = require('../services/leaveAccrual');
 const {
   canAccessEmployee,
   canAssignRole,
@@ -18,6 +19,38 @@ const {
 
 const router = express.Router();
 const PASSWORD_MIN_LENGTH = 12;
+
+// Escape a value for CSV: wrap in quotes when it contains a comma, quote,
+// newline or carriage return, and double any embedded quotes (RFC 4180).
+function csvCell(value) {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function toCsv(rows) {
+  return rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+}
+
+// A filename-safe timestamp for the Content-Disposition header.
+function fileStamp(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+// Dates arrive as a JS Date (Postgres, at local midnight) or a string
+// (SQLite/MSSQL); render both as YYYY-MM-DD. Date objects are formatted from
+// their local components so a DATE never shifts a day across time zones.
+function isoDate(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(value).slice(0, 10);
+}
 
 function pagination(limitValue, offsetValue) {
   const limit = Math.min(Math.max(Number.parseInt(limitValue, 10) || 100, 1), 200);
@@ -419,6 +452,60 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
     if (/UNIQUE/i.test(err.message)) return res.status(400).json({ error: 'Email already exists' });
     console.error(err.message);
     res.status(500).json({ error: 'Failed to update employee' });
+  }
+});
+
+router.get('/annual-leave', authenticate, authorize('hr', 'admin'), async (req, res) => {
+  try {
+    // Approved annual leave is what actually consumes the balance, so only
+    // those requests are counted as "taken".
+    const result = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.hire_date, u.status,
+              d.name AS department_name,
+              COALESCE((
+                SELECT SUM(lr.days_requested) FROM leave_requests lr
+                WHERE lr.user_id = u.id AND lr.status = 'approved' AND lr.leave_type = 'annual'
+              ), 0) AS taken_days
+       FROM users u
+       LEFT JOIN departments d ON d.id = u.department_id
+       ORDER BY u.last_name, u.first_name`
+    );
+    const asOf = new Date();
+    const header = [
+      'Employee',
+      'Email',
+      'Department',
+      'Hire Date',
+      'Years of Service',
+      'Days Per Year',
+      'Accrued Days',
+      'Taken Days',
+      'Remaining Days',
+    ];
+    const rows = [header];
+    for (const user of result.rows) {
+      const summary = leaveSummary(user, asOf);
+      rows.push([
+        `${user.first_name} ${user.last_name}`.trim(),
+        user.email || '',
+        user.department_name || '',
+        summary.hire_date ? isoDate(summary.hire_date) : '',
+        summary.years_of_service ?? '',
+        summary.days_per_year,
+        summary.accrued_days ?? '',
+        summary.taken_days,
+        summary.remaining_days ?? '',
+      ]);
+    }
+    const csv = toCsv(rows);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="annual-leave-${fileStamp()}.csv"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    // Prepend a UTF-8 BOM so Excel opens the file with the right encoding.
+    res.send(`\uFEFF${csv}`);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Failed to export annual leave report' });
   }
 });
 

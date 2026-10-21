@@ -654,6 +654,8 @@ export default {
     title: 'ሰራተኞች',
     subtitle: 'የቡድና አባላትንና የሥራ ዝርዝሮቻቸውን ይመልከቱ።',
     addEmployee: 'ሰራተኛ ጨምር',
+    downloadAnnualLeave: 'የዓመት ፈቃድ አውርድ',
+    downloading: 'በማውረድ ላይ...',
     firstName: 'የመጀመሪያ ስም',
     lastName: 'የአብር ስም',
     position: 'መደቦት',

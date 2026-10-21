@@ -656,6 +656,8 @@ export default {
     title: 'Employees',
     subtitle: 'View team members and their employment details.',
     addEmployee: 'Add Employee',
+    downloadAnnualLeave: 'Download annual leave',
+    downloading: 'Downloading...',
     firstName: 'First Name',
     lastName: 'Last Name',
     position: 'Position',

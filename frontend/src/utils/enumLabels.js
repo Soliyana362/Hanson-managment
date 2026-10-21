@@ -4,7 +4,9 @@ export const LEAVE_TYPE_KEYS = {
   sick: 'leaveType.sick',
   emergency: 'leaveType.emergency',
   unpaid: 'leaveType.unpaid',
-  other: 'leaveType.other',
+  maternity: 'leaveType.maternity',
+  bereavement: 'leaveType.bereavement',
+  marriage: 'leaveType.marriage',
 };
 
 export const LEAVE_STATUS_KEYS = {

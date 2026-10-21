@@ -1,10 +1,23 @@
 const express = require('express');
+const fs = require('fs');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { canAccessEmployee, cleanText, parseId, validDateRange } = require('../security');
+const {
+  leaveDocumentsDir,
+  LEAVE_DOCUMENT_TYPES,
+  safeOriginalName,
+  extensionFor,
+  uploadLeaveDocument,
+  uploadSingle,
+  removeFile,
+  writeBuffer,
+  hasSignatureBuffer,
+  resolveStoredPath,
+} = require('../fileStore');
 
 const router = express.Router();
-const LEAVE_TYPES = new Set(['annual', 'sick', 'unpaid', 'emergency', 'other']);
+const LEAVE_TYPES = new Set(['annual', 'sick', 'unpaid', 'emergency', 'maternity', 'bereavement', 'marriage']);
 
 function pagination(limitValue, offsetValue) {
   const limit = Math.min(Math.max(Number.parseInt(limitValue, 10) || 100, 1), 200);
@@ -44,10 +57,12 @@ router.get('/', authenticate, async (req, res) => {
     }
     let query = `
       SELECT lr.*, u.first_name, u.last_name, u.email,
-             r.first_name AS reviewer_first_name, r.last_name AS reviewer_last_name
+             r.first_name AS reviewer_first_name, r.last_name AS reviewer_last_name,
+             ld.id AS document_id, ld.original_name AS document_name
       FROM leave_requests lr
       JOIN users u ON u.id = lr.user_id
       LEFT JOIN users r ON r.id = lr.reviewed_by
+      LEFT JOIN leave_documents ld ON ld.leave_request_id = lr.id
     `;
     const params = [];
     if (req.user.role === 'employee') {
@@ -69,7 +84,11 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, uploadSingle(uploadLeaveDocument, 'document'), async (req, res) => {
+  const file = req.file;
+  let writtenPath = null;
+  const client = await pool.connect();
+  let transactionStarted = false;
   try {
     const leaveType = String(req.body?.leave_type || '').trim().toLowerCase();
     if (!LEAVE_TYPES.has(leaveType)) return res.status(400).json({ error: 'Leave type is invalid' });
@@ -78,19 +97,54 @@ router.post('/', authenticate, async (req, res) => {
     const reason = cleanText(req.body?.reason, 2000);
     if (req.body?.reason && reason === null) return res.status(400).json({ error: 'Reason is too long' });
 
-    const overlap = await pool.query(
+    if (file && !LEAVE_DOCUMENT_TYPES.has(file.mimetype)) {
+      return res.status(400).json({ error: 'Unsupported document type' });
+    }
+    if (file && !hasSignatureBuffer(file.buffer, file.mimetype)) {
+      return res.status(400).json({ error: 'File content does not match its type' });
+    }
+    if (leaveType === 'sick' && !file) {
+      return res.status(400).json({ error: 'A medical document is required for sick leave' });
+    }
+
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    const overlap = await client.query(
       `SELECT id FROM leave_requests
        WHERE user_id = $1 AND status IN ('pending', 'approved')
          AND start_date <= $2 AND end_date >= $3 LIMIT 1`,
       [req.user.id, range.end, range.start]
     );
-    if (overlap.rows[0]) return res.status(409).json({ error: 'Leave overlaps an existing request' });
+    if (overlap.rows[0]) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(409).json({ error: 'Leave overlaps an existing request' });
+    }
 
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO leave_requests (user_id, leave_type, start_date, end_date, days_requested, reason)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [req.user.id, leaveType, range.start, range.end, range.days, reason]
     );
+
+    if (file) {
+      const { storedName, filePath } = writeBuffer(
+        leaveDocumentsDir,
+        file.buffer,
+        extensionFor(file.mimetype, LEAVE_DOCUMENT_TYPES)
+      );
+      writtenPath = filePath;
+      await client.query(
+        `INSERT INTO leave_documents (leave_request_id, original_name, stored_name, mime_type, size_bytes, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [result.rows[0].id, safeOriginalName(file.originalname), storedName, file.mimetype, file.size, req.user.id]
+      );
+    }
+
+    await client.query('COMMIT');
+    transactionStarted = false;
+
     const requesterName = await userName(pool, req.user.id);
     await notifyStaff(pool, {
       type: 'leave_submitted',
@@ -100,8 +154,48 @@ router.post('/', authenticate, async (req, res) => {
     });
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    if (transactionStarted) await client.query('ROLLBACK');
+    if (writtenPath) removeFile(writtenPath);
+    if (/match its type|document type|too large|unsupported/i.test(err.message)) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error(err.message);
     res.status(500).json({ error: 'Failed to create leave request' });
+  } finally {
+    client.release();
+  }
+});
+
+router.get('/:id/document', authenticate, async (req, res) => {
+  try {
+    const leaveId = parseId(req.params.id);
+    if (!leaveId) return res.status(400).json({ error: 'Leave request id is invalid' });
+    const result = await pool.query(
+      `SELECT ld.*, lr.user_id FROM leave_documents ld
+       JOIN leave_requests lr ON lr.id = ld.leave_request_id
+       WHERE ld.leave_request_id = $1`,
+      [leaveId]
+    );
+    const doc = result.rows[0];
+    if (!doc) return res.status(404).json({ error: 'No document attached to this request' });
+    if (!(await canAccessEmployee(req.user, doc.user_id))) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    const filePath = resolveStoredPath(leaveDocumentsDir, doc.stored_name);
+    if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing on storage' });
+    res.sendFile(filePath, {
+      dotfiles: 'deny',
+      headers: {
+        'Content-Type': doc.mime_type || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${safeOriginalName(doc.original_name)}"`,
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "sandbox; default-src 'none'",
+        'Cache-Control': 'private, no-store',
+      },
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Failed to load document' });
   }
 });
 

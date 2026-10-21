@@ -39,7 +39,7 @@ BEGIN
   CREATE TABLE leave_requests (
     id INT IDENTITY(1,1) PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    leave_type NVARCHAR(30) NOT NULL CHECK (leave_type IN ('annual', 'sick', 'unpaid', 'emergency', 'other')),
+    leave_type NVARCHAR(30) NOT NULL CHECK (leave_type IN ('annual', 'sick', 'unpaid', 'emergency', 'maternity', 'bereavement', 'marriage', 'other')),
     start_date NVARCHAR(10) NOT NULL,
     end_date NVARCHAR(10) NOT NULL,
     days_requested DECIMAL(5,1) NOT NULL,
@@ -48,6 +48,21 @@ BEGIN
     reviewed_by INT REFERENCES users(id),
     review_notes NVARCHAR(MAX),
     reviewed_at NVARCHAR(19),
+    created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120)
+  );
+END
+GO
+
+IF OBJECT_ID('dbo.leave_documents', 'U') IS NULL
+BEGIN
+  CREATE TABLE leave_documents (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    leave_request_id INT NOT NULL UNIQUE REFERENCES leave_requests(id) ON DELETE CASCADE,
+    original_name NVARCHAR(255) NOT NULL,
+    stored_name NVARCHAR(255) NOT NULL,
+    mime_type NVARCHAR(100),
+    size_bytes INT,
+    uploaded_by INT REFERENCES users(id),
     created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120)
   );
 END
@@ -264,6 +279,10 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_leave_status' AND object_id = OBJECT_ID('dbo.leave_requests'))
   CREATE INDEX idx_leave_status ON leave_requests(status);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_leave_documents_request' AND object_id = OBJECT_ID('dbo.leave_documents'))
+  CREATE INDEX idx_leave_documents_request ON leave_documents(leave_request_id);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_kpi_sub_employee' AND object_id = OBJECT_ID('dbo.kpi_submissions'))

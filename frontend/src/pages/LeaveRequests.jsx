@@ -8,29 +8,49 @@ const LEAVE_TYPE_OPTIONS = [
   { value: 'sick', key: 'leaveType.sick' },
   { value: 'emergency', key: 'leaveType.emergency' },
   { value: 'unpaid', key: 'leaveType.unpaid' },
-  { value: 'other', key: 'leaveType.other' },
+  { value: 'maternity', key: 'leaveType.maternity' },
+  { value: 'bereavement', key: 'leaveType.bereavement' },
+  { value: 'marriage', key: 'leaveType.marriage' },
 ];
+
+const EMPTY_FORM = { leave_type: 'annual', start_date: '', end_date: '', reason: '' };
 
 export default function LeaveRequests() {
   const { t } = useLanguage();
   const [requests, setRequests] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ leave_type: 'annual', start_date: '', end_date: '', reason: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const load = () => api.get('/leave').then((res) => setRequests(res.data)).catch(console.error);
   useEffect(() => { load(); }, []);
 
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setDocument(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    if (form.leave_type === 'sick' && !document) {
+      setError(t('leave.sickDocumentRequired'));
+      return;
+    }
     try {
-      await api.post('/leave', form);
+      const payload = new FormData();
+      payload.append('leave_type', form.leave_type);
+      payload.append('start_date', form.start_date);
+      payload.append('end_date', form.end_date);
+      payload.append('reason', form.reason || '');
+      if (document) payload.append('document', document);
+      await api.post('/leave', payload);
       setSuccess(t('leave.submitted'));
       setShowForm(false);
-      setForm({ leave_type: 'annual', start_date: '', end_date: '', reason: '' });
+      resetForm();
       load();
     } catch (err) {
       setError(err.response?.data?.error || t('leave.submitFailed'));
@@ -87,6 +107,16 @@ export default function LeaveRequests() {
               <label>{t('leave.reason')}</label>
               <textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t('leave.optionalReason')} />
             </div>
+            <div className="form-group">
+              <label>{form.leave_type === 'sick' ? t('leave.sickDocument') : t('leave.document')}</label>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+                onChange={(e) => setDocument(e.target.files?.[0] || null)}
+                required={form.leave_type === 'sick'}
+              />
+              {form.leave_type === 'sick' && <small className="form-hint">{t('leave.sickDocumentRequired')}</small>}
+            </div>
             <button type="submit" className="btn btn-primary">{t('leave.submit')}</button>
           </form>
         </div>
@@ -102,13 +132,14 @@ export default function LeaveRequests() {
                 <th>{t('leave.end')}</th>
                 <th>{t('leave.days')}</th>
                 <th>{t('leave.reason')}</th>
+                <th>{t('leave.document')}</th>
                 <th>{t('common.status')}</th>
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {requests.length === 0 ? (
-                <tr><td colSpan={7} className="empty-state">{t('leave.noRequests')}</td></tr>
+                <tr><td colSpan={8} className="empty-state">{t('leave.noRequests')}</td></tr>
               ) : requests.map((r) => (
                 <tr key={r.id}>
                   <td>{labelFor(LEAVE_TYPE_KEYS, r.leave_type, t)}</td>
@@ -116,6 +147,11 @@ export default function LeaveRequests() {
                   <td>{new Date(r.end_date).toLocaleDateString()}</td>
                   <td>{r.days_requested}</td>
                   <td>{r.reason || '—'}</td>
+                  <td>
+                    {r.document_id ? (
+                      <a href={`/api/leave/${r.id}/document`} target="_blank" rel="noreferrer">{t('leave.viewDocument')}</a>
+                    ) : '—'}
+                  </td>
                   <td><span className={`badge badge-${r.status}`}>{labelFor(LEAVE_STATUS_KEYS, r.status, t)}</span></td>
                   <td>
                     {r.status === 'pending' && (

@@ -90,7 +90,9 @@ export default {
     sick: 'Sick Leave',
     emergency: 'Emergency',
     unpaid: 'Unpaid Leave',
-    other: 'Other',
+    maternity: 'Maternity Leave',
+    bereavement: 'Bereavement Leave',
+    marriage: 'Marriage Leave',
   },
 
   nav: {
@@ -334,6 +336,10 @@ export default {
     endDate: 'End Date',
     days: 'Days',
     reason: 'Reason',
+    document: 'Document',
+    sickDocument: 'Medical Document',
+    sickDocumentRequired: 'A medical document is required for sick leave.',
+    viewDocument: 'View document',
     submit: 'Submit Request',
     submitting: 'Submitting...',
     myRequests: 'My Requests',

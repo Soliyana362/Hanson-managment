@@ -18,17 +18,27 @@ export default function EditProfileModal({ onClose }) {
     age: user?.age ?? '',
     emergency_contact: user?.emergency_contact || '',
     education: user?.education || '',
+    password: '',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // The API requires the current password whenever the sign-in email changes,
+  // so only prompt for it when the email actually differs from the saved one.
+  const emailChanged = (form.email || '').trim().toLowerCase() !== (user?.email || '').trim().toLowerCase();
+
   const handleSave = async (e) => {
     e.preventDefault();
     setError('');
+    if (emailChanged && !form.password) {
+      setError(t('profile.currentPasswordRequired'));
+      return;
+    }
     setSaving(true);
     try {
       const res = await api.put('/users/profile', form);
       updateUser(res.data);
+      setForm((prev) => ({ ...prev, password: '' }));
       onClose();
     } catch (err) {
       setError(err.response?.data?.error || t('profile.saveFailed'));
@@ -78,6 +88,22 @@ export default function EditProfileModal({ onClose }) {
                 required
               />
             </div>
+            {emailChanged && (
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>{t('profile.currentPassword')}</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  autoComplete="current-password"
+                  placeholder={t('profile.currentPasswordPlaceholder')}
+                />
+                <small style={{ display: 'block', marginTop: '4px', fontSize: '0.78rem', color: '#6F8F73' }}>
+                  {t('profile.currentPasswordRequired')}
+                </small>
+              </div>
+            )}
             <div className="form-group">
               <label>{t('profile.phone')}</label>
               <input

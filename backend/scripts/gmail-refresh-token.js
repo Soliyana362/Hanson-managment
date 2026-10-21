@@ -18,6 +18,9 @@
  * the GMAIL_REFRESH_TOKEN it prints into your Render environment.
  */
 const http = require('http');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { URL } = require('url');
 
 const clientId = process.env.GMAIL_CLIENT_ID;
@@ -76,8 +79,15 @@ const server = http.createServer(async (req, res) => {
     if (!tokenRes.ok || !data.refresh_token) {
       console.error('Token exchange failed:', data);
     } else {
+      const tokenFile = process.env.GMAIL_TOKEN_OUT || path.join(os.tmpdir(), 'gmail-refresh-token.txt');
+      try {
+        fs.writeFileSync(tokenFile, data.refresh_token);
+      } catch (err) {
+        console.error(`Could not write token file: ${err.message}`);
+      }
       console.log('\nSuccess. Add this to your environment:\n');
       console.log(`GMAIL_REFRESH_TOKEN=${data.refresh_token}\n`);
+      console.log(`Saved to: ${tokenFile}\n`);
     }
   } catch (err) {
     console.error('Token exchange error:', err.message);

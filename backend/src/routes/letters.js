@@ -1,21 +1,13 @@
 const express = require('express');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { parseId } = require('../security');
+const { documentsDir } = require('../fileStore');
 
 const router = express.Router();
-
-const uploadRoot = process.env.UPLOAD_DIR
-  ? path.resolve(process.env.UPLOAD_DIR)
-  : process.env.VERCEL
-    ? path.join(os.tmpdir(), 'glorious-hr-uploads')
-    : path.join(__dirname, '..', '..', 'uploads');
-const documentsDir = path.join(uploadRoot, 'documents');
-fs.mkdirSync(documentsDir, { recursive: true });
 
 function escapeHtml(value) {
   return String(value ?? '')

@@ -90,7 +90,9 @@ export default {
     sick: 'የበረሙና እረፍት',
     emergency: 'አደጋ',
     unpaid: 'ያልተከፈለ እረፍት',
-    other: 'ሌላ',
+    maternity: 'የእናትነት ፈቃድ',
+    bereavement: 'የሐዘን ፈቃድ',
+    marriage: 'የጋብቻ ፈቃድ',
   },
 
   nav: {
@@ -334,6 +336,10 @@ export default {
     endDate: 'የመጨረሻ ቀን',
     days: 'ቀናት',
     reason: 'ምክንያት',
+    document: 'ሰነድ',
+    sickDocument: 'የሕክምና ሰነድ',
+    sickDocumentRequired: 'ለህመም ፈቃድ የሕክምና ሰነድ ያስፈልጋል።',
+    viewDocument: 'ሰነድ ይመልከቱ',
     submit: 'ጥያቄ ላክ',
     submitting: 'በመላክ ላይ...',
     myRequests: 'የእኔ ጥያቄዎች',

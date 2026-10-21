@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS leave_requests (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  leave_type VARCHAR(30) NOT NULL CHECK (leave_type IN ('annual', 'sick', 'unpaid', 'emergency', 'other')),
+  leave_type VARCHAR(30) NOT NULL CHECK (leave_type IN ('annual', 'sick', 'unpaid', 'emergency', 'maternity', 'bereavement', 'marriage', 'other')),
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
   days_requested DECIMAL(5,1) NOT NULL,
@@ -45,6 +45,19 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   reviewed_by INTEGER REFERENCES users(id),
   review_notes TEXT,
   reviewed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Supporting document for a leave request (medical certificate and similar
+-- proof). One document per request; the file itself lives outside the database.
+CREATE TABLE IF NOT EXISTS leave_documents (
+  id SERIAL PRIMARY KEY,
+  leave_request_id INTEGER NOT NULL UNIQUE REFERENCES leave_requests(id) ON DELETE CASCADE,
+  original_name VARCHAR(255) NOT NULL,
+  stored_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100),
+  size_bytes INTEGER,
+  uploaded_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -190,5 +203,6 @@ CREATE INDEX IF NOT EXISTS idx_users_department ON users(department_id);
 CREATE INDEX IF NOT EXISTS idx_users_manager ON users(manager_id);
 CREATE INDEX IF NOT EXISTS idx_leave_user ON leave_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_leave_status ON leave_requests(status);
+CREATE INDEX IF NOT EXISTS idx_leave_documents_request ON leave_documents(leave_request_id);
 CREATE INDEX IF NOT EXISTS idx_kpi_sub_employee ON kpi_submissions(employee_id);
 CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id);

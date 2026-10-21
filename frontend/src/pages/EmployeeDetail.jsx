@@ -27,6 +27,7 @@ export default function EmployeeDetail() {
   const [loading, setLoading] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
+  const [showPhoto, setShowPhoto] = useState(false);
   const [docsVersion, setDocsVersion] = useState(0);
   const isHr = ['hr', 'admin'].includes(user?.role);
   const canIssueCertificate = ['hr', 'admin', 'coo'].includes(user?.role);
@@ -72,18 +73,27 @@ export default function EmployeeDetail() {
             <Link to={user?.role === 'coo' ? '/coo' : '/employees'} className="btn btn-secondary btn-sm">{t('common.back')}</Link>
           </div>
         </div>
-        <div style={{
-          width: 140,
-          height: 140,
-          borderRadius: '50%',
-          background: '#ECEFF1',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          border: '3px solid #4CAF50',
-          flexShrink: 0,
-        }}>
+        <div
+          onClick={photoUrl ? () => setShowPhoto(true) : undefined}
+          role={photoUrl ? 'button' : undefined}
+          tabIndex={photoUrl ? 0 : undefined}
+          onKeyDown={photoUrl ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPhoto(true); } } : undefined}
+          aria-label={photoUrl ? t('employeeDetail.viewPhoto') : undefined}
+          title={photoUrl ? t('employeeDetail.viewPhoto') : undefined}
+          style={{
+            width: 140,
+            height: 140,
+            borderRadius: '50%',
+            background: '#ECEFF1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            border: '3px solid #4CAF50',
+            flexShrink: 0,
+            cursor: photoUrl ? 'pointer' : 'default',
+          }}
+        >
           {photoUrl ? (
             <img src={photoUrl} alt={t('employeeDetail.profilePhotoAlt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
@@ -204,6 +214,39 @@ export default function EmployeeDetail() {
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); load(); }}
         />
+      )}
+
+      {showPhoto && photoUrl && (
+        <div
+          className="modal-overlay"
+          style={{ background: 'rgba(0, 0, 0, 0.75)' }}
+          onClick={() => setShowPhoto(false)}
+        >
+          <img
+            src={photoUrl}
+            alt={t('employeeDetail.profilePhotoAlt')}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              width: 'auto',
+              height: 'auto',
+              borderRadius: '8px',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+              objectFit: 'contain',
+            }}
+          />
+          <button
+            className="modal-close"
+            onClick={() => setShowPhoto(false)}
+            aria-label={t('common.close')}
+            style={{ position: 'absolute', top: 20, right: 20, color: '#fff' }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );

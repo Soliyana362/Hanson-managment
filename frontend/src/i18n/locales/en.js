@@ -286,6 +286,7 @@ export default {
     editEmployee: 'Edit Employee',
     profile: 'Profile',
     profilePhotoAlt: 'Profile',
+    viewPhoto: 'View full size',
     documents: 'Documents',
     leaveBalances: 'Leave Balances',
     recentLeaveRequests: 'Recent Leave Requests',

@@ -286,6 +286,7 @@ export default {
     editEmployee: 'ሰራተኛ አሻሽል',
     profile: 'መገልጫ',
     profilePhotoAlt: 'መገልጫ',
+    viewPhoto: 'ሙሉ መጠን ይመልከቱ',
     documents: 'ሰነድዎች',
     leaveBalances: 'የእረፍት ቀሪ ሰዓት',
     recentLeaveRequests: 'የቅርንጫፍ የእረፍት ጥያቄዎች',

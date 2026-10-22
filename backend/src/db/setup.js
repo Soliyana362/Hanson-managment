@@ -80,6 +80,7 @@ async function migrate(driver) {
   await migrateEmailNullable(driver);
   await migrateRoles(driver);
   await migrateKpiTranslations(driver);
+  await migrateLeaveRequestColumns(driver);
   await migrateLeaveTypes(driver);
 }
 

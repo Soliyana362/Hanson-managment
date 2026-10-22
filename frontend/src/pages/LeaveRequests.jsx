@@ -16,7 +16,7 @@ const LEAVE_TYPE_OPTIONS = [
 const EMPTY_FORM = { leave_type: 'annual', start_date: '', end_date: '', reason: '' };
 
 export default function LeaveRequests() {
-  const { t } = useLanguage();
+  const { t, formatDate } = useLanguage();
   const [requests, setRequests] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -143,8 +143,8 @@ export default function LeaveRequests() {
               ) : requests.map((r) => (
                 <tr key={r.id}>
                   <td>{labelFor(LEAVE_TYPE_KEYS, r.leave_type, t)}</td>
-                  <td>{new Date(r.start_date).toLocaleDateString()}</td>
-                  <td>{new Date(r.end_date).toLocaleDateString()}</td>
+                  <td>{formatDate(r.start_date)}</td>
+                  <td>{formatDate(r.end_date)}</td>
                   <td>{r.days_requested}</td>
                   <td>{r.reason || '—'}</td>
                   <td>

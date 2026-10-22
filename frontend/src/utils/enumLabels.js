@@ -7,6 +7,7 @@ export const LEAVE_TYPE_KEYS = {
   maternity: 'leaveType.maternity',
   bereavement: 'leaveType.bereavement',
   marriage: 'leaveType.marriage',
+  other: 'leaveType.other',
 };
 
 export const LEAVE_STATUS_KEYS = {

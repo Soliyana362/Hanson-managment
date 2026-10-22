@@ -48,6 +48,7 @@ BEGIN
     reviewed_by INT REFERENCES users(id),
     review_notes NVARCHAR(MAX),
     reviewed_at NVARCHAR(19),
+    created_by INT REFERENCES users(id),
     created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120)
   );
 END

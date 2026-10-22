@@ -54,7 +54,14 @@ function assertNonDefaultPassword(connectionString, source) {
 }
 
 function buildPostgres() {
-  const { Pool } = require('pg');
+  const pg = require('pg');
+  const { Pool } = pg;
+
+  // A DATE column has no time zone. The driver would otherwise hand it over
+  // as a Date pinned to local midnight, which serialises to an ISO timestamp
+  // that lands on the previous day for anyone west of Greenwich. Reading the
+  // raw "YYYY-MM-DD" keeps every calendar date exactly as it is stored.
+  pg.types.setTypeParser(1082, (value) => value);
 
   const connectionString = normalizeConnectionString(
     process.env.DATABASE_URL

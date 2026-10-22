@@ -79,6 +79,15 @@ export function LanguageProvider({ children }) {
   const formatDate = useCallback(
     (value, options) => {
       if (!value) return EMPTY;
+      // A bare calendar date (YYYY-MM-DD) carries no time zone. Parsing it as
+      // UTC would move it to the previous day for anyone west of Greenwich,
+      // so the date parts are formatted as a local date instead.
+      const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value).trim());
+      if (bare) {
+        const [, year, month, day] = bare;
+        const local = new Date(Number(year), Number(month) - 1, Number(day));
+        if (!Number.isNaN(local.getTime())) return local.toLocaleDateString(locale, options);
+      }
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return String(value);
       return date.toLocaleDateString(locale, options);

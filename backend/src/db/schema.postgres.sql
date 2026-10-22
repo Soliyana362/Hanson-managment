@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   reviewed_by INTEGER REFERENCES users(id),
   review_notes TEXT,
   reviewed_at TIMESTAMP,
+  created_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

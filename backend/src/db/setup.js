@@ -80,6 +80,7 @@ async function migrate(driver) {
   await migrateEmailNullable(driver);
   await migrateRoles(driver);
   await migrateKpiTranslations(driver);
+  await migrateLeaveTypes(driver);
 }
 
 // Employees are not required to have an email address, so the sign-in column
@@ -129,8 +130,26 @@ async function migrateKpiTranslations(driver) {
   }
 }
 
-async function tableColumns(driver, table) {
-  if (driver === 'sqlite') {
+// Records who entered a leave request so requests that HR or a manager filed
+// on behalf of an employee can be told apart from self-service submissions.
+async function migrateLeaveRequestColumns(driver) {
+  if (!['sqlite', 'postgres', 'postgresql', 'pg', 'mssql'].includes(driver)) return;
+  const columns = {
+    created_by: driver === 'mssql' ? 'INT' : 'INTEGER',
+  };
+  const existing = await tableColumns(driver, 'leave_requests');
+  for (const [name, type] of Object.entries(columns)) {
+    if (existing.includes(name)) continue;
+    try {
+      await pool.query(`ALTER TABLE leave_requests ADD COLUMN ${name} ${type}`);
+      console.log(`  Added column: leave_requests.${name}`);
+    } catch (err) {
+      console.log(`  Column leave_requests.${name} already present or skipped (${err.message})`);
+    }
+  }
+}
+
+async function tableColumns(driver, table) {  if (driver === 'sqlite') {
     const info = await pool.query(`PRAGMA table_info(${table})`);
     return info.rows.map((row) => row.name);
   }
@@ -146,6 +165,81 @@ async function tableColumns(driver, table) {
     [table]
   );
   return info.rows.map((row) => row.column_name);
+}
+
+// Leave requests gained maternity, bereavement, and marriage types. "other" is
+// still accepted by the database so historical rows keep validating, but the
+// API no longer offers or accepts it.
+const LEAVE_TYPE_VALUES = "'annual', 'sick', 'unpaid', 'emergency', 'maternity', 'bereavement', 'marriage', 'other'";
+
+async function migrateLeaveTypes(driver) {
+  if (driver === 'sqlite') {
+    const t = await pool.query("SELECT sql FROM sqlite_master WHERE type='table' AND name='leave_requests'");
+    const createSql = t.rows[0]?.sql || '';
+    if (!createSql || createSql.includes("'maternity'")) return;
+
+    console.log('  Rebuilding leave_requests table to allow new leave types...');
+    await pool.query('PRAGMA foreign_keys=OFF');
+    await pool.query('DROP TABLE IF EXISTS leave_requests_new');
+    await pool.query(`
+      CREATE TABLE leave_requests_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        leave_type VARCHAR(30) NOT NULL CHECK (leave_type IN (${LEAVE_TYPE_VALUES})),
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        days_requested DECIMAL(5,1) NOT NULL,
+        reason TEXT,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+        reviewed_by INTEGER REFERENCES users(id),
+        review_notes TEXT,
+        reviewed_at TEXT,
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
+      )
+    `);
+    await pool.query(`
+      INSERT INTO leave_requests_new (
+        id, user_id, leave_type, start_date, end_date, days_requested, reason,
+        status, reviewed_by, review_notes, reviewed_at, created_at
+      )
+      SELECT
+        id, user_id, leave_type, start_date, end_date, days_requested, reason,
+        status, reviewed_by, review_notes, reviewed_at, created_at
+      FROM leave_requests
+    `);
+    await pool.query('DROP TABLE leave_requests');
+    await pool.query('ALTER TABLE leave_requests_new RENAME TO leave_requests');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_leave_user ON leave_requests(user_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_leave_status ON leave_requests(status)');
+    await pool.query('PRAGMA foreign_keys=ON');
+    console.log('  leave_requests table rebuilt with new leave types.');
+  } else if (driver === 'postgres' || driver === 'postgresql' || driver === 'pg') {
+    try {
+      await pool.query('ALTER TABLE leave_requests DROP CONSTRAINT IF EXISTS leave_requests_leave_type_check');
+      await pool.query(
+        `ALTER TABLE leave_requests ADD CONSTRAINT leave_requests_leave_type_check CHECK (leave_type IN (${LEAVE_TYPE_VALUES}))`
+      );
+      console.log('  Updated leave type check constraint to allow new leave types.');
+    } catch (err) {
+      console.log(`  Leave type check migration skipped (${err.message})`);
+    }
+  } else if (driver === 'mssql') {
+    try {
+      const found = await pool.query(
+        `SELECT name FROM sys.check_constraints
+         WHERE parent_object_id = OBJECT_ID('dbo.leave_requests') AND definition LIKE '%leave_type%'`
+      );
+      for (const row of found.rows) {
+        await pool.query(`ALTER TABLE leave_requests DROP CONSTRAINT [${row.name}]`);
+      }
+      await pool.query(
+        `ALTER TABLE leave_requests ADD CONSTRAINT leave_requests_leave_type_check CHECK (leave_type IN (${LEAVE_TYPE_VALUES}))`
+      );
+      console.log('  Updated leave type check constraint to allow new leave types.');
+    } catch (err) {
+      console.log(`  Leave type check migration skipped (${err.message})`);
+    }
+  }
 }
 
 async function migrateRoles(driver) {

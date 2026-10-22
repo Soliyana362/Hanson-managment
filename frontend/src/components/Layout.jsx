@@ -179,7 +179,7 @@ export default function Layout({ children }) {
     <div className="layout">
       <aside className={`sidebar${sidebarOpen ? ' sidebar--open' : ''}`} onClick={() => setSidebarOpen(false)}>
         <div className="sidebar-brand">
-          <img src="/hanson-logo.png" alt="Hanson" className="brand-logo" />
+          <img src="/Hanson%20plc%20logo.png" alt="Hanson" className="brand-logo" />
           <div>
             <h2>Hanson</h2>
           </div>

@@ -67,7 +67,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <img src="/hanson-logo.png" alt="Hanson" className="login-logo" />
+          <img src="/Hanson%20plc%20logo.png" alt="Hanson" className="login-logo" />
           <h1>{t('common.appName')}</h1>
           <p>{t('common.tagline')}</p>
         </div>

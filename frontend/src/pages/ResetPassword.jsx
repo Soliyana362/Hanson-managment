@@ -47,7 +47,7 @@ export default function ResetPassword() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <img src="/hanson-logo.png" alt="Hanson" className="login-logo" />
+          <img src="/Hanson%20plc%20logo.png" alt="Hanson" className="login-logo" />
           <h1>{t('resetPassword.chooseNewPassword')}</h1>
           <p>{t('resetPassword.headerSubtitle')}</p>
         </div>

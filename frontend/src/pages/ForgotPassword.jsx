@@ -32,7 +32,7 @@ export default function ForgotPassword() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <img src="/hanson-logo.png" alt="Hanson" className="login-logo" />
+          <img src="/Hanson%20plc%20logo.png" alt="Hanson" className="login-logo" />
           <h1>{t('forgotPassword.title')}</h1>
           <p>{t('forgotPassword.headerSubtitle')}</p>
         </div>

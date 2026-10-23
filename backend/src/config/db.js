@@ -241,6 +241,10 @@ function buildMssql() {
       request.input(name, mssql.DateTime2, value);
       return;
     }
+    if (Buffer.isBuffer(value)) {
+      request.input(name, mssql.VarBinary(mssql.MAX), value);
+      return;
+    }
     request.input(name, mssql.NVarChar(mssql.MAX), String(value));
   }
 

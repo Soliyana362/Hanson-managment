@@ -81,6 +81,7 @@ async function migrate(driver) {
   await migrateRoles(driver);
   await migrateKpiTranslations(driver);
   await migrateLeaveRequestColumns(driver);
+  await migrateDocumentColumns(driver);
   await migrateLeaveTypes(driver);
 }
 
@@ -146,6 +147,25 @@ async function migrateLeaveRequestColumns(driver) {
       console.log(`  Added column: leave_requests.${name}`);
     } catch (err) {
       console.log(`  Column leave_requests.${name} already present or skipped (${err.message})`);
+    }
+  }
+}
+
+// Profile photos live in the database so they survive restarts and redeploys
+// on hosts with an ephemeral filesystem.
+async function migrateDocumentColumns(driver) {
+  if (!['sqlite', 'postgres', 'postgresql', 'pg', 'mssql'].includes(driver)) return;
+  const columns = {
+    data: driver === 'mssql' ? 'VARBINARY(MAX)' : driver === 'sqlite' ? 'BLOB' : 'BYTEA',
+  };
+  const existing = await tableColumns(driver, 'documents');
+  for (const [name, type] of Object.entries(columns)) {
+    if (existing.includes(name)) continue;
+    try {
+      await pool.query(`ALTER TABLE documents ADD COLUMN ${name} ${type}`);
+      console.log(`  Added column: documents.${name}`);
+    } catch (err) {
+      console.log(`  Column documents.${name} already present or skipped (${err.message})`);
     }
   }
 }

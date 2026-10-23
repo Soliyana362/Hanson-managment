@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS documents (
   stored_name VARCHAR(255) NOT NULL,
   mime_type VARCHAR(100),
   size_bytes INTEGER,
+  data BYTEA,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

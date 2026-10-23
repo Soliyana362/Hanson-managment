@@ -183,6 +183,7 @@ BEGIN
     stored_name NVARCHAR(255) NOT NULL,
     mime_type NVARCHAR(100),
     size_bytes BIGINT,
+    data VARBINARY(MAX),
     created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120)
   );
 END

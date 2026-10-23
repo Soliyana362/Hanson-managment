@@ -238,11 +238,12 @@ router.post('/', authenticate, uploadSingle(uploadLeaveDocument, 'document'), as
       return res.status(409).json({ error: 'Leave overlaps an existing request' });
     }
 
-    const result = await client.query(
+    const insert = await client.query(
       `INSERT INTO leave_requests (user_id, leave_type, start_date, end_date, days_requested, reason, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [targetUserId, leaveType, range.start, range.end, range.days, reason, req.user.id]
     );
+    const result = insert;
 
     if (file) {
       const { storedName, filePath } = writeBuffer(
@@ -304,7 +305,7 @@ router.post('/', authenticate, uploadSingle(uploadLeaveDocument, 'document'), as
     if (/match its type|document type|too large|unsupported/i.test(err.message)) {
       return res.status(400).json({ error: err.message });
     }
-    console.error(err.message);
+    console.error('leave.create failed:', err && err.message ? err.message : err);
     res.status(500).json({ error: 'Failed to create leave request' });
   } finally {
     client.release();

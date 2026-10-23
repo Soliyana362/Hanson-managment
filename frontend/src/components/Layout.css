@@ -26,13 +26,10 @@
 }
 
 .brand-logo {
-  width: 104px;
-  height: 35px;
+  width: 132px;
+  height: 44px;
   object-fit: contain;
   object-position: left center;
-  background: white;
-  border-radius: 12px;
-  padding: 4px;
 }
 
 .sidebar-brand h2 {

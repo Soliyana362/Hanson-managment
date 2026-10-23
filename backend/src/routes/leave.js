@@ -21,6 +21,46 @@ const LEAVE_TYPES = new Set(['annual', 'sick', 'unpaid', 'emergency', 'maternity
 const LEAVE_MANAGER_ROLES = ['hr', 'admin', 'manager', 'coo'];
 const LEAVE_TARGET_ROLES = new Set(['employee', 'manager']);
 
+const DB_DRIVER = String(process.env.DB_DRIVER || 'sqlite').toLowerCase();
+const IS_POSTGRES = ['postgres', 'postgresql', 'pg'].includes(DB_DRIVER);
+const IS_MSSQL = DB_DRIVER === 'mssql';
+
+// Older databases were created before leave requests recorded who filed them.
+// Checking on first use keeps the API working even when a deploy has not run
+// the schema migration yet.
+let leaveColumnsReady = null;
+function ensureLeaveColumns() {
+  if (!leaveColumnsReady) {
+    leaveColumnsReady = (async () => {
+      try {
+        let exists = false;
+        if (IS_POSTGRES) {
+          const found = await pool.query(
+            "SELECT 1 FROM information_schema.columns WHERE table_name = 'leave_requests' AND column_name = 'created_by'"
+          );
+          exists = found.rows.length > 0;
+        } else if (IS_MSSQL) {
+          const found = await pool.query(
+            "SELECT 1 AS present FROM sys.columns WHERE object_id = OBJECT_ID('leave_requests') AND name = 'created_by'"
+          );
+          exists = found.rows.length > 0;
+        } else {
+          const found = await pool.query("PRAGMA table_info('leave_requests')");
+          exists = found.rows.some((row) => row.name === 'created_by');
+        }
+        if (!exists) {
+          await pool.query('ALTER TABLE leave_requests ADD COLUMN created_by INTEGER');
+          console.log('leave_requests.created_by column added automatically');
+        }
+      } catch (err) {
+        leaveColumnsReady = null;
+        console.error('leave schema check failed:', err && err.message ? err.message : err);
+      }
+    })();
+  }
+  return leaveColumnsReady;
+}
+
 // Only these leave types draw down a stored balance. The rest are unpaid and
 // therefore never touch the balance columns.
 function balanceColumnFor(leaveType) {
@@ -143,6 +183,7 @@ async function notifyStaff(client, { type, title, message, link, exclude }) {
 
 router.get('/', authenticate, async (req, res) => {
   try {
+    await ensureLeaveColumns();
     if (!['employee', 'manager', 'hr', 'admin', 'coo'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -183,6 +224,7 @@ router.post('/', authenticate, uploadSingle(uploadLeaveDocument, 'document'), as
   const client = await pool.connect();
   let transactionStarted = false;
   try {
+    await ensureLeaveColumns();
     const leaveType = String(req.body?.leave_type || '').trim().toLowerCase();
     if (!LEAVE_TYPES.has(leaveType)) return res.status(400).json({ error: 'Leave type is invalid' });
     const range = validDateRange(req.body?.start_date, req.body?.end_date);
@@ -281,23 +323,29 @@ router.post('/', authenticate, uploadSingle(uploadLeaveDocument, 'document'), as
     await client.query('COMMIT');
     transactionStarted = false;
 
-    const requesterName = await userName(pool, req.user.id);
-    const employeeName = onBehalf ? await userName(pool, targetUserId) : requesterName;
-    if (onBehalf) {
-      await pool.query(
-        `INSERT INTO notifications (user_id, type, title, message, link)
-         VALUES ($1, 'leave_submitted', 'Leave Request Recorded For You', $2, '/leave')`,
-        [targetUserId, `${requesterName} recorded a ${leaveType} leave for you (${range.start} to ${range.end}).`]
-      );
+    // The request is already saved at this point. A notification problem must
+    // not turn a successful submission into an error for the user.
+    try {
+      const requesterName = await userName(pool, req.user.id);
+      const employeeName = onBehalf ? await userName(pool, targetUserId) : requesterName;
+      if (onBehalf) {
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message, link)
+           VALUES ($1, 'leave_submitted', 'Leave Request Recorded For You', $2, '/leave')`,
+          [targetUserId, `${requesterName} recorded a ${leaveType} leave for you (${range.start} to ${range.end}).`]
+        );
+      }
+      await notifyStaff(pool, {
+        type: 'leave_submitted',
+        title: 'New Leave Request',
+        message: onBehalf
+          ? `${requesterName} recorded a ${leaveType} leave request for ${employeeName} (${range.start} to ${range.end}).`
+          : `${requesterName} submitted a ${leaveType} leave request (${range.start} to ${range.end}).`,
+        link: '/leave/review',
+      });
+    } catch (notifyErr) {
+      console.error('leave.create notify failed:', notifyErr && notifyErr.message ? notifyErr.message : notifyErr);
     }
-    await notifyStaff(pool, {
-      type: 'leave_submitted',
-      title: 'New Leave Request',
-      message: onBehalf
-        ? `${requesterName} recorded a ${leaveType} leave request for ${employeeName} (${range.start} to ${range.end}).`
-        : `${requesterName} submitted a ${leaveType} leave request (${range.start} to ${range.end}).`,
-      link: '/leave/review',
-    });
     res.status(201).json(withDateStrings(result.rows[0]));
   } catch (err) {
     if (transactionStarted) await client.query('ROLLBACK');
@@ -442,9 +490,8 @@ router.patch('/:id/review', authenticate, authorize('hr', 'admin', 'manager'), a
 router.patch('/:id', authenticate, uploadSingle(uploadLeaveDocument, 'document'), async (req, res) => {
   const file = req.file;
   let writtenPath = null;
-  const replacedPaths = [];
   const client = await pool.connect();
-  let transactionStarted = false;
+  let transactionStarted = false; try { await ensureLeaveColumns(); } catch (e) { console.error('leave patch ensure columns failed:', e && e.message ? e.message : e); }
   try {
     const leaveId = parseId(req.params.id);
     if (!leaveId) return res.status(400).json({ error: 'Leave request id is invalid' });

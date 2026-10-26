@@ -676,6 +676,8 @@ export default {
   employees: {
     addCoo: 'COO ጨምር',
     cooAdded: 'COO ታክሏል',
+    cooAddedEmailSent: 'COO ታክሏል። የይለፍ ቃል ማዘጋጃ ሊንክ ወደ ኢሜይላቸው ተልኳል።',
+    cooAddedEmailFailed: 'COO ታክሏል፣ ግን የይለፍ ቃል ማዘጋጃ ሊንኩ መላክ አልተቻለም። አዲስ ሊንክ ከመግቢያ ገጹ (የይለፍ ቃል ረሳሁ) ሊጠይቁ ይችላሉ።',
     cooAddFailed: 'COO ማከል አልተሳካም',
     title: 'ሰራተኞች',
     subtitle: 'የቡድና አባላትንና የሥራ ዝርዝሮቻቸውን ይመልከቱ።',

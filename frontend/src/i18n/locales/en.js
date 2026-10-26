@@ -678,6 +678,8 @@ export default {
   employees: {
     addCoo: 'Add COO',
     cooAdded: 'COO added',
+    cooAddedEmailSent: 'COO added. A password setup link has been sent to their email.',
+    cooAddedEmailFailed: 'COO added, but the password setup link could not be sent. They can request a new link from the login page (forgot password).',
     cooAddFailed: 'Failed to add COO',
     title: 'Employees',
     subtitle: 'View team members and their employment details.',

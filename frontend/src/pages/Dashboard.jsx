@@ -95,13 +95,17 @@ export default function Dashboard() {
     setCooFormError('');
     setCooFormSuccess('');
     try {
-      await api.post('/users', {
+      const created = await api.post('/users', {
         first_name: cooForm.first_name.trim(),
         last_name: cooForm.last_name.trim(),
         email: cooForm.email.trim(),
         role: 'coo',
       });
-      setCooFormSuccess(t('employees.cooAdded'));
+      setCooFormSuccess(
+        created.data.emailSent === false
+          ? t('employees.cooAddedEmailFailed')
+          : t('employees.cooAddedEmailSent')
+      );
       setCooForm({ first_name: '', last_name: '', email: '' });
       api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
     } catch (err) {

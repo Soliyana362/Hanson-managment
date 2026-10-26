@@ -35,10 +35,14 @@ export default function Dashboard() {
   const { t, formatNumber } = useLanguage();
   const [data, setData] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddCoo, setShowAddCoo] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+  const [cooForm, setCooForm] = useState({ first_name: '', last_name: '' });
+  const [cooFormError, setCooFormError] = useState('');
+  const [cooFormSuccess, setCooFormSuccess] = useState('');
   const [attachFiles, setAttachFiles] = useState([]);
   const attachInputRef = useRef(null);
   const [form, setForm] = useState(emptyEmployeeForm);
@@ -68,16 +72,40 @@ export default function Dashboard() {
   const isManager = ['hr', 'admin', 'manager'].includes(user?.role);
   const isHr = ['hr', 'admin'].includes(user?.role);
 
-  const openAdd = (role = 'employee') => {
+  const openAdd = () => {
     setFormError('');
     setFormSuccess('');
     setAttachFiles([]);
-    setForm({ ...emptyEmployeeForm(), role });
     api.get('/users/departments').then((res) => setDepartments(res.data)).catch(console.error);
     api.get('/users')
       .then((res) => setManagers(res.data.filter((u) => ['manager', 'hr', 'admin', 'coo'].includes(u.role))))
       .catch(console.error);
     setShowAdd(true);
+  };
+
+  const openAddCoo = () => {
+    setCooForm({ first_name: '', last_name: '' });
+    setCooFormError('');
+    setCooFormSuccess('');
+    setShowAddCoo(true);
+  };
+
+  const handleAddCoo = async (e) => {
+    e.preventDefault();
+    setCooFormError('');
+    setCooFormSuccess('');
+    try {
+      await api.post('/users', {
+        first_name: cooForm.first_name.trim(),
+        last_name: cooForm.last_name.trim(),
+        role: 'coo',
+      });
+      setCooFormSuccess(t('employees.cooAdded'));
+      setCooForm({ first_name: '', last_name: '' });
+      api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
+    } catch (err) {
+      setCooFormError(err.response?.data?.error || t('employees.cooAddFailed'));
+    }
   };
 
   const handleAdd = async (e) => {
@@ -113,7 +141,7 @@ export default function Dashboard() {
             : t('employees.addedEmailSent')
       );
       setAttachFiles([]);
-      setForm({ ...emptyEmployeeForm(), role: form.role });
+      setForm(emptyEmployeeForm());
       api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
     } catch (err) {
       setFormError(err.response?.data?.error || t('employees.addFailed'));
@@ -133,11 +161,11 @@ export default function Dashboard() {
         </div>
         {isHr && (
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={() => openAdd()}>
+            <button className="btn btn-primary" onClick={openAdd}>
               + {t('employees.addEmployee')}
             </button>
             {user?.role === 'admin' && (
-              <button className="btn btn-secondary" onClick={() => openAdd('coo')}>
+              <button className="btn btn-secondary" onClick={openAddCoo}>
                 + {t('employees.addCoo')}
               </button>
             )}
@@ -218,11 +246,54 @@ export default function Dashboard() {
         </div>
       )}
 
+      {showAddCoo && (
+        <div className="modal-overlay" onClick={() => setShowAddCoo(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('employees.addCoo')}</h3>
+              <button className="modal-close" onClick={() => setShowAddCoo(false)} aria-label={t('common.close')}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {cooFormError && <div className="error-msg">{cooFormError}</div>}
+            {cooFormSuccess && <div className="success-msg">{cooFormSuccess}</div>}
+
+            <form onSubmit={handleAddCoo}>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>{t('employees.firstName')}</label>
+                  <input
+                    value={cooForm.first_name}
+                    onChange={(e) => setCooForm({ ...cooForm, first_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('employees.lastName')}</label>
+                  <input
+                    value={cooForm.last_name}
+                    onChange={(e) => setCooForm({ ...cooForm, last_name: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                <button type="submit" className="btn btn-primary">{t('employees.addCoo')}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddCoo(false)}>{t('common.cancel')}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showAdd && (
         <div className="modal-overlay" onClick={() => setShowAdd(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{form.role === 'coo' ? t('employees.addCoo') : t('employees.addEmployee')}</h3>
+              <h3>{t('employees.addEmployee')}</h3>
               <button className="modal-close" onClick={() => setShowAdd(false)} aria-label={t('common.close')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -253,7 +324,6 @@ export default function Dashboard() {
                     <option value="employee">{t('roles.employee')}</option>
                     <option value="manager">{t('roles.manager')}</option>
                     <option value="hr">{t('roles.hr')}</option>
-                    {user?.role === 'admin' && <option value="coo">{t('roles.coo')}</option>}
                   </select>
                 </div>
                 <div className="form-group">
@@ -383,9 +453,7 @@ export default function Dashboard() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                <button type="submit" className="btn btn-primary">
-                  {form.role === 'coo' ? t('employees.addCoo') : t('employees.addEmployee')}
-                </button>
+                <button type="submit" className="btn btn-primary">{t('employees.addEmployee')}</button>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</button>
               </div>
             </form>

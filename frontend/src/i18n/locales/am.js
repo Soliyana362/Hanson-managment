@@ -675,6 +675,8 @@ export default {
 
   employees: {
     addCoo: 'COO ጨምር',
+    cooAdded: 'COO ታክሏል',
+    cooAddFailed: 'COO ማከል አልተሳካም',
     title: 'ሰራተኞች',
     subtitle: 'የቡድና አባላትንና የሥራ ዝርዝሮቻቸውን ይመልከቱ።',
     addEmployee: 'ሰራተኛ ጨምር',

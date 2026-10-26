@@ -677,6 +677,8 @@ export default {
 
   employees: {
     addCoo: 'Add COO',
+    cooAdded: 'COO added',
+    cooAddFailed: 'Failed to add COO',
     title: 'Employees',
     subtitle: 'View team members and their employment details.',
     addEmployee: 'Add Employee',

@@ -43,13 +43,30 @@ async function issueAccountSetup(user, client = pool) {
     insertSql += `datetime('now', '+7 days'))`;
   }
 
-  await client.query(
-    'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used = 0',
-    [user.id]
-  );
   await client.query(insertSql, [user.id, tokenHash]);
 
-  await sendAccountSetupEmail(user.email, user.first_name, token);
+  try {
+    await sendAccountSetupEmail(user.email, user.first_name, token);
+  } catch (err) {
+    try {
+      await client.query(
+        'DELETE FROM password_reset_tokens WHERE user_id = $1 AND token = $2 AND used = 0',
+        [user.id, tokenHash]
+      );
+    } catch (cleanupError) {
+      console.error(`Failed to remove undelivered account setup token: ${cleanupError.message}`);
+    }
+    throw err;
+  }
+
+  try {
+    await client.query(
+      'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used = 0 AND token <> $2',
+      [user.id, tokenHash]
+    );
+  } catch (err) {
+    console.error(`Failed to remove older account setup tokens: ${err.message}`);
+  }
 }
 
 module.exports = { issueEmailVerification, issueAccountSetup };

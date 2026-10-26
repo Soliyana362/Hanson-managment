@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../i18n';
@@ -21,6 +21,7 @@ import { templateName } from '../utils/kpiContent';
 
 export default function EmployeeDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { t, locale, language, formatDate, formatCurrency } = useLanguage();
   const [data, setData] = useState(null);
@@ -28,6 +29,9 @@ export default function EmployeeDetail() {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
+  const [showRemove, setShowRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const [docsVersion, setDocsVersion] = useState(0);
   const isHr = ['hr', 'admin'].includes(user?.role);
   const canIssueCertificate = ['hr', 'admin', 'coo'].includes(user?.role);
@@ -59,6 +63,21 @@ export default function EmployeeDetail() {
   if (!data) return <p>{t('employeeDetail.loadFailed')}</p>;
 
   const { profile, recentLeave, recentKpis } = data;
+  const canRemoveEmployee = user?.role === 'admin'
+    && profile.role !== 'admin'
+    && Number(profile.id) !== Number(user.id);
+
+  const removeEmployee = async () => {
+    setRemoving(true);
+    setRemoveError('');
+    try {
+      await api.delete(`/users/${profile.id}`);
+      navigate('/employees', { replace: true });
+    } catch (err) {
+      setRemoveError(err.response?.data?.error || t('employees.removeEmployeeFailed'));
+      setRemoving(false);
+    }
+  };
 
   return (
     <div>
@@ -69,6 +88,11 @@ export default function EmployeeDetail() {
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
             {isHr && (
               <button className="btn btn-primary" onClick={() => setShowEdit(true)}>{t('employeeDetail.editEmployee')}</button>
+            )}
+            {canRemoveEmployee && (
+              <button className="btn btn-danger" onClick={() => { setRemoveError(''); setShowRemove(true); }}>
+                {t('employees.removeEmployee')}
+              </button>
             )}
             <Link to={user?.role === 'coo' ? '/coo' : '/employees'} className="btn btn-secondary btn-sm">{t('common.back')}</Link>
           </div>
@@ -214,6 +238,31 @@ export default function EmployeeDetail() {
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); load(); }}
         />
+      )}
+
+      {showRemove && (
+        <div className="modal-overlay" onClick={() => (removing ? null : setShowRemove(false))}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('employees.removeEmployee')}</h3>
+            </div>
+            <p style={{ margin: '0 0 12px' }}>
+              {t('employees.removeEmployeeConfirm', { name: `${profile.first_name} ${profile.last_name}` })}
+            </p>
+            <p style={{ margin: '0 0 20px', color: 'var(--danger, #c62828)' }}>
+              {t('employees.removeEmployeeWarning')}
+            </p>
+            {removeError && <p role="alert" style={{ color: 'var(--danger, #c62828)', margin: '0 0 16px' }}>{removeError}</p>}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowRemove(false)} disabled={removing}>
+                {t('common.cancel')}
+              </button>
+              <button type="button" className="btn btn-danger" onClick={removeEmployee} disabled={removing}>
+                {removing ? t('employees.removingEmployee') : t('common.yes')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showPhoto && photoUrl && (

@@ -107,6 +107,20 @@ function passwordResetInsertSql() {
   return sql;
 }
 
+function recentPasswordResetQuery() {
+  // Account setup links share this table but live for seven days; they must not
+  // suppress a password reset request made just after account creation.
+  const driver = process.env.DB_DRIVER || 'sqlite';
+  const resetTokenExpiry = driver === 'postgres' || driver === 'postgresql' || driver === 'pg'
+    ? "expires_at - created_at < INTERVAL '1 day'"
+    : driver === 'mssql'
+      ? 'DATEDIFF(MINUTE, created_at, expires_at) < 1440'
+      : 'julianday(expires_at) - julianday(created_at) < 1';
+  return `SELECT created_at FROM password_reset_tokens
+          WHERE user_id = $1 AND used = 0 AND ${resetTokenExpiry}
+          ORDER BY created_at DESC LIMIT 1`;
+}
+
 // The web app is served from a different origin than the API, and the
 // csrf_token cookie is bound to the API's own domain, so document.cookie in
 // the browser cannot read it cross-site. Hand the token back in the response
@@ -390,19 +404,41 @@ router.post('/forgot-password', async (req, res) => {
     await bcrypt.compare(DUMMY_PASSWORD_HASH + email, DUMMY_PASSWORD_HASH);
     if (user) {
       const recentRes = await pool.query(
-        'SELECT created_at FROM password_reset_tokens WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+        recentPasswordResetQuery(),
         [user.id]
       );
       const recent = recentRes.rows[0];
       const canSend = !recent || Date.now() - new Date(recent.created_at).getTime() >= EMAIL_REQUEST_COOLDOWN_MS;
       if (canSend) {
         const token = createToken();
+        const tokenHash = hashToken(token);
+        let emailSent = false;
         try {
-          await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND used = 0', [user.id]);
-          await pool.query(passwordResetInsertSql(), [user.id, hashToken(token)]);
+          await pool.query(passwordResetInsertSql(), [user.id, tokenHash]);
           await sendPasswordResetEmail(user.email, user.first_name, token);
+          emailSent = true;
         } catch (err) {
+          try {
+            await pool.query(
+              'DELETE FROM password_reset_tokens WHERE user_id = $1 AND token = $2 AND used = 0',
+              [user.id, tokenHash]
+            );
+          } catch (cleanupError) {
+            console.error(`Failed to remove undelivered password reset token: ${cleanupError.message}`);
+          }
           console.error(`Failed to send password reset email: ${err.message}`);
+        }
+        // Keep one active link, but only retire older links after the new one
+        // was actually accepted by the mail transport.
+        if (emailSent) {
+          try {
+            await pool.query(
+              'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used = 0 AND token <> $2',
+              [user.id, tokenHash]
+            );
+          } catch (err) {
+            console.error(`Failed to remove older password reset tokens: ${err.message}`);
+          }
         }
       }
     }

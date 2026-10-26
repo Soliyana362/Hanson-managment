@@ -676,6 +676,7 @@ export default {
   },
 
   employees: {
+    addCoo: 'Add COO',
     title: 'Employees',
     subtitle: 'View team members and their employment details.',
     addEmployee: 'Add Employee',

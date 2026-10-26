@@ -674,6 +674,7 @@ export default {
   },
 
   employees: {
+    addCoo: 'COO ጨምር',
     title: 'ሰራተኞች',
     subtitle: 'የቡድና አባላትንና የሥራ ዝርዝሮቻቸውን ይመልከቱ።',
     addEmployee: 'ሰራተኛ ጨምር',

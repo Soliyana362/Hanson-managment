@@ -68,10 +68,11 @@ export default function Dashboard() {
   const isManager = ['hr', 'admin', 'manager'].includes(user?.role);
   const isHr = ['hr', 'admin'].includes(user?.role);
 
-  const openAdd = () => {
+  const openAdd = (role = 'employee') => {
     setFormError('');
     setFormSuccess('');
     setAttachFiles([]);
+    setForm({ ...emptyEmployeeForm(), role });
     api.get('/users/departments').then((res) => setDepartments(res.data)).catch(console.error);
     api.get('/users')
       .then((res) => setManagers(res.data.filter((u) => ['manager', 'hr', 'admin', 'coo'].includes(u.role))))
@@ -112,7 +113,7 @@ export default function Dashboard() {
             : t('employees.addedEmailSent')
       );
       setAttachFiles([]);
-      setForm(emptyEmployeeForm());
+      setForm({ ...emptyEmployeeForm(), role: form.role });
       api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
     } catch (err) {
       setFormError(err.response?.data?.error || t('employees.addFailed'));
@@ -131,7 +132,16 @@ export default function Dashboard() {
           )}
         </div>
         {isHr && (
-          <button className="btn btn-primary" onClick={openAdd}>+ {t('employees.addEmployee')}</button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={() => openAdd()}>
+              + {t('employees.addEmployee')}
+            </button>
+            {user?.role === 'admin' && (
+              <button className="btn btn-secondary" onClick={() => openAdd('coo')}>
+                + {t('employees.addCoo')}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -212,7 +222,7 @@ export default function Dashboard() {
         <div className="modal-overlay" onClick={() => setShowAdd(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{t('employees.addEmployee')}</h3>
+              <h3>{form.role === 'coo' ? t('employees.addCoo') : t('employees.addEmployee')}</h3>
               <button className="modal-close" onClick={() => setShowAdd(false)} aria-label={t('common.close')}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -243,6 +253,7 @@ export default function Dashboard() {
                     <option value="employee">{t('roles.employee')}</option>
                     <option value="manager">{t('roles.manager')}</option>
                     <option value="hr">{t('roles.hr')}</option>
+                    {user?.role === 'admin' && <option value="coo">{t('roles.coo')}</option>}
                   </select>
                 </div>
                 <div className="form-group">
@@ -372,7 +383,9 @@ export default function Dashboard() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                <button type="submit" className="btn btn-primary">{t('employees.addEmployee')}</button>
+                <button type="submit" className="btn btn-primary">
+                  {form.role === 'coo' ? t('employees.addCoo') : t('employees.addEmployee')}
+                </button>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</button>
               </div>
             </form>

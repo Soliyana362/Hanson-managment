@@ -140,7 +140,7 @@ async function canAccessEmployee(actor, targetUserId) {
   if (actorId === targetId) return true;
   if (actor.role === 'hr') {
     const result = await pool.query('SELECT role FROM users WHERE id = $1', [targetId]);
-    return !result.rows[0] || result.rows[0].role !== 'coo';
+    return !result.rows[0] || !['coo', 'admin'].includes(result.rows[0].role);
   }
   if (['admin', 'coo'].includes(actor.role)) return true;
   if (actor.role !== 'manager') return false;

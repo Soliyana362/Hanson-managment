@@ -46,7 +46,7 @@ function CustomSelect({ value, label, onChange, options, placeholder }) {
 export default function EditEmployeeModal({ profile, onClose, onSaved }) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const canEditStatus = user?.role === 'admin' || profile.role !== 'coo';
+  const canEditStatus = user?.role === 'admin' || !['coo', 'admin'].includes(profile.role);
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
   const [error, setError] = useState('');

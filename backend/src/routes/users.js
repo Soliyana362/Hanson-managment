@@ -313,7 +313,7 @@ router.get('/', authenticate, authorize('hr', 'admin', 'manager', 'coo'), async 
       query += ' WHERE u.manager_id = $1';
       params.push(req.user.id);
     } else if (req.user.role === 'hr') {
-      query += " WHERE u.role <> 'coo'";
+      query += " WHERE u.role NOT IN ('coo', 'admin')";
     }
     query += ` ORDER BY u.last_name, u.first_name ${pagination(req.query.limit, req.query.offset)}`;
     const result = await pool.query(query, params);
@@ -397,8 +397,8 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
     const currentResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
     const current = currentResult.rows[0];
     if (!current) return res.status(404).json({ error: 'Employee not found' });
-    if (req.user.role === 'hr' && current.role === 'coo' && req.body?.status !== undefined && String(req.body.status) !== current.status) {
-      return res.status(403).json({ error: 'Only administrators can change a COO status' });
+    if (req.user.role === 'hr' && ['coo', 'admin'].includes(current.role) && req.body?.status !== undefined && String(req.body.status) !== current.status) {
+      return res.status(403).json({ error: 'Only administrators can change this account status' });
     }
     const requestedRole = req.body?.role === undefined ? current.role : String(req.body.role);
     if (!canAssignRole(req.user.role, requestedRole) && requestedRole !== current.role) {

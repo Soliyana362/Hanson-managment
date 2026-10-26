@@ -40,7 +40,7 @@ export default function Dashboard() {
   const [managers, setManagers] = useState([]);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
-  const [cooForm, setCooForm] = useState({ first_name: '', last_name: '' });
+  const [cooForm, setCooForm] = useState({ first_name: '', last_name: '', email: '' });
   const [cooFormError, setCooFormError] = useState('');
   const [cooFormSuccess, setCooFormSuccess] = useState('');
   const [attachFiles, setAttachFiles] = useState([]);
@@ -84,7 +84,7 @@ export default function Dashboard() {
   };
 
   const openAddCoo = () => {
-    setCooForm({ first_name: '', last_name: '' });
+    setCooForm({ first_name: '', last_name: '', email: '' });
     setCooFormError('');
     setCooFormSuccess('');
     setShowAddCoo(true);
@@ -98,10 +98,11 @@ export default function Dashboard() {
       await api.post('/users', {
         first_name: cooForm.first_name.trim(),
         last_name: cooForm.last_name.trim(),
+        email: cooForm.email.trim(),
         role: 'coo',
       });
       setCooFormSuccess(t('employees.cooAdded'));
-      setCooForm({ first_name: '', last_name: '' });
+      setCooForm({ first_name: '', last_name: '', email: '' });
       api.get('/dashboard').then((res) => setData(res.data)).catch(console.error);
     } catch (err) {
       setCooFormError(err.response?.data?.error || t('employees.cooAddFailed'));
@@ -279,6 +280,16 @@ export default function Dashboard() {
                     required
                   />
                 </div>
+              </div>
+              <div className="form-group">
+                <label>{t('common.email')}</label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={cooForm.email}
+                  onChange={(e) => setCooForm({ ...cooForm, email: e.target.value })}
+                  required
+                />
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                 <button type="submit" className="btn btn-primary">{t('employees.addCoo')}</button>

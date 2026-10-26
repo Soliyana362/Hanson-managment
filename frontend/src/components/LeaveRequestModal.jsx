@@ -7,7 +7,6 @@ import { LEAVE_TYPE_KEYS, labelFor } from '../utils/enumLabels';
 const LEAVE_TYPE_OPTIONS = [
   { value: 'annual', key: 'leaveType.annual' },
   { value: 'sick', key: 'leaveType.sick' },
-  { value: 'emergency', key: 'leaveType.emergency' },
   { value: 'unpaid', key: 'leaveType.unpaid' },
   { value: 'maternity', key: 'leaveType.maternity' },
   { value: 'bereavement', key: 'leaveType.bereavement' },

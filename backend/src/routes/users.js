@@ -7,6 +7,13 @@ const { issueEmailVerification, issueAccountSetup } = require('../services/verif
 const { sendEmailChangeNotice } = require('../services/email');
 const { leaveSummary } = require('../services/leaveAccrual');
 const {
+  documentsDir,
+  leaveDocumentsDir,
+  photosDir,
+  removeFile,
+  resolveStoredPath,
+} = require('../fileStore');
+const {
   canAccessEmployee,
   canAssignRole,
   cleanText,
@@ -452,6 +459,84 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
     if (/UNIQUE/i.test(err.message)) return res.status(400).json({ error: 'Email already exists' });
     console.error(err.message);
     res.status(500).json({ error: 'Failed to update employee' });
+  }
+});
+
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
+  const userId = parseId(req.params.id);
+  if (!userId) return res.status(400).json({ error: 'Employee id is invalid' });
+  if (Number(userId) === Number(req.user.id)) {
+    return res.status(400).json({ error: 'You cannot remove your own account' });
+  }
+
+  const client = await pool.connect();
+  let transactionStarted = false;
+  let filesToRemove = [];
+  try {
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    const currentResult = await client.query(
+      'SELECT id, role FROM users WHERE id = $1',
+      [userId]
+    );
+    const current = currentResult.rows[0];
+    if (!current) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    if (current.role === 'admin') {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({ error: 'Administrator accounts cannot be removed here' });
+    }
+
+    const documents = await client.query(
+      'SELECT category, stored_name FROM documents WHERE user_id = $1',
+      [userId]
+    );
+    const leaveDocuments = await client.query(
+      `SELECT ld.stored_name
+       FROM leave_documents ld
+       JOIN leave_requests lr ON lr.id = ld.leave_request_id
+       WHERE lr.user_id = $1`,
+      [userId]
+    );
+    filesToRemove = [
+      ...documents.rows.map((doc) => resolveStoredPath(
+        doc.category === 'profile_photo' ? photosDir : documentsDir,
+        doc.stored_name
+      )),
+      ...leaveDocuments.rows.map((doc) => resolveStoredPath(leaveDocumentsDir, doc.stored_name)),
+    ].filter(Boolean);
+
+    // Keep other employees' records intact while removing references to this account.
+    await client.query('UPDATE users SET manager_id = NULL WHERE manager_id = $1', [userId]);
+    await client.query('UPDATE leave_requests SET reviewed_by = NULL WHERE reviewed_by = $1', [userId]);
+    await client.query('UPDATE leave_requests SET created_by = NULL WHERE created_by = $1', [userId]);
+    await client.query('UPDATE leave_documents SET uploaded_by = NULL WHERE uploaded_by = $1', [userId]);
+    await client.query('UPDATE kpi_submissions SET reviewer_id = NULL WHERE reviewer_id = $1', [userId]);
+    await client.query('UPDATE vacancies SET created_by = NULL WHERE created_by = $1', [userId]);
+
+    // KPI records belong to the removed employee and cannot retain their required employee_id.
+    await client.query('DELETE FROM kpi_submissions WHERE employee_id = $1', [userId]);
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    await client.query('COMMIT');
+    transactionStarted = false;
+
+    for (const filePath of filesToRemove) removeFile(filePath);
+    res.json({ message: 'Employee removed' });
+  } catch (err) {
+    if (transactionStarted) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {}
+    }
+    console.error(err.message);
+    res.status(500).json({ error: 'Failed to remove employee' });
+  } finally {
+    client.release();
   }
 });
 

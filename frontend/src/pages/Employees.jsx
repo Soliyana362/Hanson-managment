@@ -68,7 +68,7 @@ export default function Employees() {
             <tbody>
               {employees.map((e) => (
                 <tr key={e.id}>
-                  <td>{canViewDetail ? <Link to={`/employees/${e.id}`}>{e.first_name} {e.last_name}</Link> : <>{e.first_name} {e.last_name}</>}</td>
+                  <td>{canViewDetail && !(user?.role === 'hr' && e.role === 'coo') ? <Link to={`/employees/${e.id}`}>{e.first_name} {e.last_name}</Link> : <>{e.first_name} {e.last_name}</>}</td>
                   <td>{e.email}</td>
                   <td>{e.department_name || '—'}</td>
                   <td>{e.position || '—'}</td>

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useLanguage } from '../i18n';
+import { useAuth } from '../context/AuthContext';
 import {
   EDUCATION_KEYS,
   EMPLOYMENT_STATUS_KEYS,
@@ -44,6 +45,8 @@ function CustomSelect({ value, label, onChange, options, placeholder }) {
 
 export default function EditEmployeeModal({ profile, onClose, onSaved }) {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const canEditStatus = user?.role === 'admin' || profile.role !== 'coo';
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
   const [error, setError] = useState('');
@@ -95,6 +98,7 @@ export default function EditEmployeeModal({ profile, onClose, onSaved }) {
         deptId = dep.data.id;
       }
       const payload = { ...form, department_id: deptId || null, education: form.education === 'Other' ? form.education_other : form.education };
+      if (!canEditStatus) delete payload.status;
       const res = await api.put(`/users/${profile.id}`, payload);
       onSaved(res.data);
     } catch (err) {
@@ -184,9 +188,13 @@ export default function EditEmployeeModal({ profile, onClose, onSaved }) {
             )}
             <div className="form-group">
               <label>{t('employees.status')}</label>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{labelFor(EMPLOYMENT_STATUS_KEYS, s, t)}</option>)}
-              </select>
+              {canEditStatus ? (
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                  {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{labelFor(EMPLOYMENT_STATUS_KEYS, s, t)}</option>)}
+                </select>
+              ) : (
+                <div>{labelFor(EMPLOYMENT_STATUS_KEYS, profile.status, t)}</div>
+              )}
             </div>
             <div className="form-group">
               <label>{t('employees.hireDate')}</label>

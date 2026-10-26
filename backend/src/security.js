@@ -138,7 +138,11 @@ async function canAccessEmployee(actor, targetUserId) {
   const actorId = parseId(actor?.id);
   if (!targetId || !actorId) return false;
   if (actorId === targetId) return true;
-  if (['hr', 'admin', 'coo'].includes(actor.role)) return true;
+  if (actor.role === 'hr') {
+    const result = await pool.query('SELECT role FROM users WHERE id = $1', [targetId]);
+    return !result.rows[0] || result.rows[0].role !== 'coo';
+  }
+  if (['admin', 'coo'].includes(actor.role)) return true;
   if (actor.role !== 'manager') return false;
   const result = await pool.query('SELECT 1 AS allowed FROM users WHERE id = $1 AND manager_id = $2', [targetId, actorId]);
   return Boolean(result.rows[0]);

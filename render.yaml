@@ -39,14 +39,19 @@ services:
       - key: FRONTEND_URL
         sync: false # https://glorious-hr-web.onrender.com (set after the static site exists)
       - key: EMAIL_PROVIDER
-        value: resend # resend | brevo | sendgrid
-      - key: EMAIL_API_KEY
-        sync: false # provider API key - enables HTTP email (needed on free tier)
+        value: gmail # Gmail API over HTTPS; SMTP is blocked on Render's free plan
       - key: EMAIL_FROM
-        sync: false # e.g. "Hanson HR <no-reply@yourdomain.com>"
+        sync: false # e.g. "Hanson HR <your-sender@gmail.com>"
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
       - key: SEED_PASSWORD
         sync: false # used only by `npm run db:seed`
-      # SMTP is only a fallback; ignored while EMAIL_API_KEY is set.
+      # SMTP is retained for local development and paid hosts; the Gmail API is
+      # selected above for the free Render service.
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT

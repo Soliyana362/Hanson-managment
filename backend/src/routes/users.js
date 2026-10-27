@@ -450,11 +450,21 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
         }
       }
       if (user.email) {
+        // An employee may have been created without an email (and therefore
+        // without a usable way to set their generated password). When an
+        // administrator adds the first email address, send an account setup
+        // link. For an existing account changing its email, require verification.
+        const sendAccountSetupLink = !current.email;
         try {
-          await issueEmailVerification(user);
+          if (sendAccountSetupLink) {
+            await issueAccountSetup(user);
+          } else {
+            await issueEmailVerification(user);
+          }
         } catch (err) {
           emailSent = false;
-          console.error(`Failed to send employee email verification: ${err.message}`);
+          const emailType = sendAccountSetupLink ? 'account setup' : 'email verification';
+          console.error(`Failed to send employee ${emailType} email: ${err.message}`);
         }
       }
     }

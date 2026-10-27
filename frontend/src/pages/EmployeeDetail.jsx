@@ -32,6 +32,9 @@ export default function EmployeeDetail() {
   const [showRemove, setShowRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState('');
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState('');
   const [docsVersion, setDocsVersion] = useState(0);
   const isHr = ['hr', 'admin'].includes(user?.role);
   const canIssueCertificate = ['hr', 'admin', 'coo'].includes(user?.role);
@@ -63,9 +66,18 @@ export default function EmployeeDetail() {
   if (!data) return <p>{t('employeeDetail.loadFailed')}</p>;
 
   const { profile, recentLeave, recentKpis } = data;
-  const canRemoveEmployee = user?.role === 'admin'
-    && profile.role !== 'admin'
-    && Number(profile.id) !== Number(user.id);
+  const isSelf = Number(profile.id) === Number(user?.id);
+  const isPrivileged = ['hr', 'admin', 'coo'].includes(profile.role);
+  const canRemoveEmployee = !isSelf && (
+    user?.role === 'admin'
+      ? profile.role !== 'admin'
+      : user?.role === 'hr' && !isPrivileged
+  );
+  const canChangeEmployeeStatus = !isSelf && (
+    user?.role === 'admin'
+      || (user?.role === 'hr' && !isPrivileged)
+  );
+  const nextStatus = profile.status === 'inactive' ? 'active' : 'inactive';
 
   const removeEmployee = async () => {
     setRemoving(true);
@@ -79,15 +91,37 @@ export default function EmployeeDetail() {
     }
   };
 
+  const changeEmployeeStatus = async () => {
+    setUpdatingStatus(true);
+    setStatusError('');
+    try {
+      await api.put(`/users/${profile.id}`, { status: nextStatus });
+      setShowStatusConfirm(false);
+      await load();
+    } catch (err) {
+      setStatusError(err.response?.data?.error || t('employees.updateStatusFailed'));
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div className="page-header">
           <h1>{profile.first_name} {profile.last_name}</h1>
           <p>{t('employeeDetail.subtitle')}</p>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px' }}>
             {isHr && (
               <button className="btn btn-primary" onClick={() => setShowEdit(true)}>{t('employeeDetail.editEmployee')}</button>
+            )}
+            {canChangeEmployeeStatus && (
+              <button
+                className={`btn ${profile.status === 'inactive' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => { setStatusError(''); setShowStatusConfirm(true); }}
+              >
+                {profile.status === 'inactive' ? t('employees.reactivateEmployee') : t('employees.deactivateEmployee')}
+              </button>
             )}
             {canRemoveEmployee && (
               <button className="btn btn-danger" onClick={() => { setRemoveError(''); setShowRemove(true); }}>
@@ -259,6 +293,37 @@ export default function EmployeeDetail() {
               </button>
               <button type="button" className="btn btn-danger" onClick={removeEmployee} disabled={removing}>
                 {removing ? t('employees.removingEmployee') : t('common.yes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStatusConfirm && (
+        <div className="modal-overlay" onClick={() => (updatingStatus ? null : setShowStatusConfirm(false))}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{nextStatus === 'inactive' ? t('employees.deactivateEmployee') : t('employees.reactivateEmployee')}</h3>
+            </div>
+            <p style={{ margin: '0 0 20px' }}>
+              {nextStatus === 'inactive'
+                ? t('employees.deactivateEmployeeConfirm', { name: `${profile.first_name} ${profile.last_name}` })
+                : t('employees.reactivateEmployeeConfirm', { name: `${profile.first_name} ${profile.last_name}` })}
+            </p>
+            {statusError && <p role="alert" style={{ color: 'var(--danger, #c62828)', margin: '0 0 16px' }}>{statusError}</p>}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowStatusConfirm(false)} disabled={updatingStatus}>
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className={`btn ${nextStatus === 'inactive' ? 'btn-danger' : 'btn-primary'}`}
+                onClick={changeEmployeeStatus}
+                disabled={updatingStatus}
+              >
+                {updatingStatus
+                  ? t('employees.updatingStatus')
+                  : nextStatus === 'inactive' ? t('employees.deactivateEmployee') : t('employees.reactivateEmployee')}
               </button>
             </div>
           </div>

@@ -42,6 +42,7 @@ export const KPI_STATUS_KEYS = {
 export const EMPLOYMENT_STATUS_KEYS = {
   active: 'employmentStatus.active',
   on_leave: 'employmentStatus.on_leave',
+  inactive: 'employmentStatus.inactive',
   suspended: 'employmentStatus.suspended',
   terminated: 'employmentStatus.terminated',
   resigned: 'employmentStatus.resigned',

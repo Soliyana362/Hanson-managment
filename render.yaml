@@ -72,10 +72,10 @@ services:
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        sync: false # https://glorious-hr-api.onrender.com (baked in at build time)
     routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://glorious-hr-api.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html

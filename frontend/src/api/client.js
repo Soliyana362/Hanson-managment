@@ -1,11 +1,7 @@
 import axios from 'axios';
 
-const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-
-// When the frontend and API are on different origins, the csrf_token cookie is
-// scoped to the API's domain and is invisible to document.cookie here. The API
-// therefore also returns the token in response bodies, and we keep it in memory
-// so it can be echoed back in the X-CSRF-Token header.
+// Keep the CSRF token in memory so write requests can echo it in the
+// X-CSRF-Token header without depending on browser cookie access behavior.
 let csrfToken = '';
 
 export function setCsrfToken(token) {
@@ -22,7 +18,10 @@ function readCookie(name) {
 }
 
 const api = axios.create({
-  baseURL: `${apiBaseUrl}/api`,
+  // Keep API calls on the website's origin. The hosting rewrites proxy /api
+  // to the backend, so browsers that block cross-site cookies (common on phones)
+  // still store and send the HttpOnly session cookie as a first-party cookie.
+  baseURL: '/api',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });

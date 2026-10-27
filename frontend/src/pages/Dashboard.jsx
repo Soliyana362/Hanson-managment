@@ -142,7 +142,7 @@ export default function Dashboard() {
         !created.data.email
           ? t('employees.added')
           : created.data.emailSent === false
-            ? t('employees.addedEmailFailed')
+            ? `${t('employees.addedEmailFailed')}${created.data.emailError ? ` Details: ${created.data.emailError}` : ''}`
             : t('employees.addedEmailSent')
       );
       setAttachFiles([]);

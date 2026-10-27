@@ -280,16 +280,18 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
     // Employees registered without an email address simply have no sign-in
     // account to set up, so skip the setup email instead of failing.
     let emailSent = false;
+    let emailError = null;
     if (createdUser.email) {
       try {
         await issueAccountSetup(createdUser);
         emailSent = true;
       } catch (err) {
         emailSent = false;
+        emailError = String(err.message || 'Unknown account setup email failure').replace(/[\r\n]+/g, ' ').slice(0, 300);
         console.error(`Failed to send employee account setup email: ${err.message}`);
       }
     }
-    res.status(201).json({ ...createdUser, emailSent });
+    res.status(201).json({ ...createdUser, emailSent, ...(emailError ? { emailError } : {}) });
   } catch (err) {
     if (/UNIQUE/i.test(err.message)) return res.status(400).json({ error: 'Email already exists' });
     if (/invalid|required|not found|cannot|cycle/i.test(err.message)) return res.status(400).json({ error: err.message });

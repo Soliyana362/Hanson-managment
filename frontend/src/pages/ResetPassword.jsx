@@ -82,7 +82,7 @@ export default function ResetPassword() {
               {loading ? t('resetPassword.resetting') : t('resetPassword.reset')}
             </button>
           </form>
-        )}
+        ) : null}
 
         {message && <div className="success-msg">{message}</div>}
         {error && <div className="error-msg">{error}</div>}

@@ -52,9 +52,9 @@ export default function ResetPassword() {
           <p>{t('resetPassword.headerSubtitle')}</p>
         </div>
 
-        {!token ? (
+        {!token && !message ? (
           <div className="error-msg">{t('resetPassword.missingLink')}</div>
-        ) : (
+        ) : token ? (
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>{t('resetPassword.newPassword')}</label>
@@ -86,7 +86,7 @@ export default function ResetPassword() {
 
         {message && <div className="success-msg">{message}</div>}
         {error && <div className="error-msg">{error}</div>}
-        <Link className="forgot-link" to="/forgot-password">{t('resetPassword.requestNewLink')}</Link>
+        {!message && <Link className="forgot-link" to="/forgot-password">{t('resetPassword.requestNewLink')}</Link>}
         <Link className="back-link" to="/login">{t('forgotPassword.backToLogin')}</Link>
 
         <div className="login-language">

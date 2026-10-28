@@ -67,11 +67,10 @@ export default function EmployeeDetail() {
 
   const { profile, recentLeave, recentKpis } = data;
   const isSelf = Number(profile.id) === Number(user?.id);
-  const isPrivileged = ['hr', 'admin', 'coo'].includes(profile.role);
   const canRemoveEmployee = user?.role === 'admin' && !isSelf && profile.role !== 'admin';
   const canChangeEmployeeStatus = !isSelf && (
     user?.role === 'admin'
-      || (user?.role === 'hr' && !isPrivileged)
+      || (user?.role === 'hr' && ['employee', 'manager'].includes(profile.role))
   );
   const nextStatus = profile.status === 'inactive' ? 'active' : 'inactive';
 

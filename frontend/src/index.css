@@ -323,6 +323,7 @@ button, input, select, textarea {
 .badge-draft { background: #E8F5E9; color: #2E7D32; }
 .badge-submitted { background: #F3E5F5; color: #7B1FA2; }
 .badge-active { background: #E8F5E9; color: #2E7D32; }
+.badge-inactive { background: #FFEBEE; color: #C62828; font-weight: 700; }
 .badge-on_leave { background: #FFF8E1; color: #F57F17; }
 .badge-hired { background: #E8F5E9; color: #2E7D32; }
 .badge-cancelled { background: #ECEFF1; color: #6F8F73; }

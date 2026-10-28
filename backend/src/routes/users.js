@@ -479,7 +479,7 @@ router.put('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
   }
 });
 
-router.delete('/:id', authenticate, authorize('hr', 'admin'), async (req, res) => {
+router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   const userId = parseId(req.params.id);
   if (!userId) return res.status(400).json({ error: 'Employee id is invalid' });
   if (Number(userId) === Number(req.user.id)) {
@@ -508,12 +508,6 @@ router.delete('/:id', authenticate, authorize('hr', 'admin'), async (req, res) =
       transactionStarted = false;
       return res.status(403).json({ error: 'Administrator accounts cannot be removed here' });
     }
-    if (req.user.role === 'hr' && ['hr', 'coo'].includes(current.role)) {
-      await client.query('ROLLBACK');
-      transactionStarted = false;
-      return res.status(403).json({ error: 'HR cannot remove privileged accounts' });
-    }
-
     const documents = await client.query(
       'SELECT category, stored_name FROM documents WHERE user_id = $1',
       [userId]

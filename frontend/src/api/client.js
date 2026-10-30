@@ -38,8 +38,27 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    const url = err.config?.url || '';
+  async (err) => {
+    const config = err.config;
+    if (
+      err.response?.status === 403
+      && err.response?.data?.error === 'CSRF validation failed'
+      && config
+      && !config._csrfRetried
+    ) {
+      config._csrfRetried = true;
+      try {
+        const csrf = await api.get('/auth/csrf');
+        setCsrfToken(csrf.data.csrfToken);
+        config.headers = config.headers || {};
+        config.headers['X-CSRF-Token'] = csrf.data.csrfToken;
+        return api(config);
+      } catch {
+        // Let the original request error reach the caller if token refresh fails.
+      }
+    }
+
+    const url = config?.url || '';
     const authEndpoints = ['/auth/login', '/auth/me', '/auth/change-password', '/auth/verify-email', '/auth/resend-verification', '/auth/forgot-password', '/auth/reset-password'];
     const isAuthEndpoint = authEndpoints.some((endpoint) => url.includes(endpoint));
     if (err.response?.status === 401 && !isAuthEndpoint) {

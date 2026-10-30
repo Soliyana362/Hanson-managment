@@ -834,6 +834,8 @@ export default {
     documentFailed: 'ሰነዱን መጫን አልተቻለም።',
     editFailed: 'ሰነዱን ማስተካከል አልተቻለም።',
     downloadFailed: 'ፋይሉን ማውረድ አልተቻለም።',
+    removeWarningLetter: 'የማስጠንቀቂያ ደብዳቤን አስወግድ',
+    removeCertificate: 'ሰርተፍኬቱን አስወግድ',
     deleteFailed: 'ፋይሉን መሰረዝ አልተቻለም።',
   },
 

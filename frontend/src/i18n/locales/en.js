@@ -843,6 +843,8 @@ export default {
     documentFailed: 'Failed to upload document.',
     editFailed: 'Failed to edit document.',
     downloadFailed: 'Failed to download file.',
+    removeWarningLetter: 'Remove warning letter',
+    removeCertificate: 'Remove certificate',
     deleteFailed: 'Failed to delete file.',
   },
 

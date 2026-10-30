@@ -183,6 +183,13 @@ export default function EmployeeFiles({ userId, readonly = false, hidePhoto = fa
     }
   };
 
+  const removeLabel = (doc) => {
+    const name = String(doc.original_name || '').toLowerCase();
+    if (name.includes('warning-letter')) return t('files.removeWarningLetter');
+    if (name.includes('certificate')) return t('files.removeCertificate');
+    return t('common.delete');
+  };
+
   return (
     <div className={`grid-photo${hidePhoto ? ' grid-photo--no-photo' : ''}`}>
       {!hidePhoto && (
@@ -317,7 +324,7 @@ export default function EmployeeFiles({ userId, readonly = false, hidePhoto = fa
                         </button>
                         {canEditDocs && (
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => remove(d)}>
-                            {t('common.delete')}
+                            {removeLabel(d)}
                           </button>
                         )}
                       </div>

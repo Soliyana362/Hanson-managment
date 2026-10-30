@@ -469,16 +469,24 @@ router.get('/submissions', authenticate, async (req, res) => {
 router.get('/department-achievements', authenticate, authorize('hr', 'admin', 'coo'), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT COALESCE(d.name, 'Unassigned') AS department_name,
+      SELECT d.name AS department_name,
+             COUNT(DISTINCT ks.id) AS submission_count,
+             AVG(si.achievement_pct) AS achievement_pct
+      FROM departments d
+      LEFT JOIN users e ON e.department_id = d.id AND e.role = 'employee'
+      LEFT JOIN kpi_submissions ks ON ks.employee_id = e.id AND ks.status IN ('submitted', 'reviewed', 'approved')
+      LEFT JOIN kpi_submission_items si ON si.submission_id = ks.id
+      GROUP BY d.id, d.name
+      UNION ALL
+      SELECT 'Unassigned' AS department_name,
              COUNT(DISTINCT ks.id) AS submission_count,
              AVG(si.achievement_pct) AS achievement_pct
       FROM users e
-      LEFT JOIN departments d ON d.id = e.department_id
       LEFT JOIN kpi_submissions ks ON ks.employee_id = e.id AND ks.status IN ('submitted', 'reviewed', 'approved')
       LEFT JOIN kpi_submission_items si ON si.submission_id = ks.id
-      WHERE e.role = 'employee'
-      GROUP BY COALESCE(d.name, 'Unassigned')
-      ORDER BY COALESCE(d.name, 'Unassigned')
+      WHERE e.role = 'employee' AND e.department_id IS NULL
+      HAVING COUNT(DISTINCT e.id) > 0
+      ORDER BY department_name
     `);
     res.json(result.rows.map((row) => ({
       department_name: row.department_name,

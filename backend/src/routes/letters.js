@@ -140,7 +140,7 @@ function warningHtml({ employee, issuer, subject, incidentDate, details, require
         <p>This letter is issued as a formal warning and will remain part of the employee record.</p>
       </section>
       <section class="signature">
-        <div class="line">${escapeHtml(issuerName)}<br>HR</div>
+        <div class="line">${escapeHtml(issuerName)}<br>${escapeHtml(issuer.role)}</div>
         <div class="line">Employee Signature<br>${escapeHtml(employeeName)}</div>
       </section>
     `,
@@ -189,7 +189,7 @@ router.post('/:userId/certificate', authenticate, authorize('hr', 'admin', 'coo'
   }
 });
 
-router.post('/:userId/warning', authenticate, authorize('hr', 'admin'), async (req, res) => {
+router.post('/:userId/warning', authenticate, authorize('hr', 'admin', 'coo'), async (req, res) => {
   try {
     const userId = parseId(req.params.userId);
     if (!userId) return res.status(400).json({ error: 'Employee id is invalid' });
@@ -207,7 +207,7 @@ router.post('/:userId/warning', authenticate, authorize('hr', 'admin'), async (r
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
     const issuer = await getUser(req.user.id);
-    issuer.role = 'HR';
+    issuer.role = issuer.role === 'coo' ? 'CEO' : 'HR';
     const html = warningHtml({
       employee,
       issuer,
@@ -227,7 +227,7 @@ router.post('/:userId/warning', authenticate, authorize('hr', 'admin'), async (r
       userId,
       type: 'warning',
       title: 'Warning Letter',
-      message: `HR issued you a warning letter: ${subject}.`,
+      message: `${issuer.role} issued you a warning letter: ${subject}.`,
     });
 
     res.status(201).json(doc);

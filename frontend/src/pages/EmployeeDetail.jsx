@@ -38,7 +38,7 @@ export default function EmployeeDetail() {
   const [docsVersion, setDocsVersion] = useState(0);
   const isHr = ['hr', 'admin'].includes(user?.role);
   const canIssueCertificate = ['hr', 'admin', 'coo'].includes(user?.role);
-  const canIssueWarning = ['hr', 'admin'].includes(user?.role);
+  const canIssueWarning = ['hr', 'admin', 'coo'].includes(user?.role);
   const keepRawPeriodLabel = user?.role === 'manager';
 
   const load = () => api.get(`/users/${id}/status`).then((res) => setData(res.data)).catch(console.error).finally(() => setLoading(false));

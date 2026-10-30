@@ -26,7 +26,7 @@ function toDistribution(counts, total, formatNumber) {
   }));
 }
 
-function DistributionCard({ title, rows }) {
+function DistributionCard({ title, rows, employeesLabel, formatNumber }) {
   return (
     <div className="card">
       <h3 style={{ marginBottom: '16px', color: '#2E7D32' }}>{title}</h3>
@@ -35,7 +35,9 @@ function DistributionCard({ title, rows }) {
           <div key={row.label}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '6px', fontSize: '0.9rem' }}>
               <span style={{ color: '#1B5E20', fontWeight: 600 }}>{row.label}</span>
-              <span style={{ color: '#2E7D32', fontWeight: 700 }}>{row.percent}</span>
+              <span style={{ color: '#2E7D32', fontWeight: 700 }}>
+                {formatNumber(row.count)} {employeesLabel} · {row.percent}
+              </span>
             </div>
             <div style={{ height: '8px', background: '#EAF3EC', borderRadius: '999px', overflow: 'hidden' }}>
               <div style={{ width: row.width, height: '100%', minWidth: row.count ? '4px' : 0, background: row.color || '#4CAF50', borderRadius: '999px' }} />
@@ -115,9 +117,9 @@ export default function CooDashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <DistributionCard title={t('coo.genderRatio')} rows={genderRows} />
-        <DistributionCard title={t('coo.ageGroups')} rows={ageRows} />
-        <DistributionCard title={t('coo.knowledgeStatus')} rows={knowledgeRows} />
+        <DistributionCard title={t('coo.genderRatio')} rows={genderRows} employeesLabel={t('statusChart.employees')} formatNumber={formatNumber} />
+        <DistributionCard title={t('coo.ageGroups')} rows={ageRows} employeesLabel={t('statusChart.employees')} formatNumber={formatNumber} />
+        <DistributionCard title={t('coo.knowledgeStatus')} rows={knowledgeRows} employeesLabel={t('statusChart.employees')} formatNumber={formatNumber} />
       </div>
 
       <div className="card">

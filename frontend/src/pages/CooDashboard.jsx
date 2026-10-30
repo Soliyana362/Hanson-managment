@@ -54,7 +54,7 @@ export default function CooDashboard() {
 
   useEffect(() => {
     api.get('/users')
-      .then((res) => setEmployees(res.data))
+      .then((res) => setEmployees(res.data.filter((employee) => !['coo', 'admin'].includes(employee.role))))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);

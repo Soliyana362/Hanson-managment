@@ -65,7 +65,7 @@ export default {
     admin: 'Admin',
     manager: 'Manager',
     employee: 'Employee',
-    coo: 'COO',
+    coo: 'CEO',
   },
 
   period: {
@@ -106,7 +106,7 @@ export default {
     kpiTemplates: 'KPI Templates',
     employees: 'Employees',
     hiring: 'Hiring & Vacancies',
-    cooDashboard: 'COO Dashboard',
+    cooDashboard: 'CEO Dashboard',
     management: 'Management',
     hr: 'HR',
     executive: 'Executive',
@@ -786,8 +786,8 @@ export default {
   },
 
   coo: {
-    title: 'COO Dashboard',
-    letters: 'COO Letters',
+    title: 'CEO Dashboard',
+    letters: 'CEO Letters',
     overview: 'Executive Overview',
     subtitle: 'View employee status across the organization. Read-only.',
     totalEmployees: 'Total Employees',

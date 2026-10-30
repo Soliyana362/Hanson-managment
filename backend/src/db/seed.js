@@ -1,6 +1,7 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const { DAYS_PER_YEAR } = require('../services/leaveAccrual');
 
 const RATING_CRITERIA = `5: 100% - Greatly exceeds expectation
 4: 96-99% - Exceeds expectation
@@ -112,11 +113,11 @@ async function seed() {
 
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, role, department_id, position, gender, age, hire_date,
-        tin_number, pension_number, emergency_contact, bank_account, gross_salary, transport_allowance, education, email_verified_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '2024-01-15', $10, $11, $12, $13, $14, $15, $16, NOW())
+        tin_number, pension_number, emergency_contact, bank_account, gross_salary, transport_allowance, education, email_verified_at, annual_leave_balance)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '2024-01-15', $10, $11, $12, $13, $14, $15, $16, NOW(), $17)
        RETURNING id, email`,
       [u.email, passwordHash, u.first_name, u.last_name, u.role, depts[u.department], u.position,
-        u.gender, u.age, u.tin_number, u.pension_number, u.emergency_contact, u.bank_account, u.gross_salary, u.transport_allowance, u.education]
+        u.gender, u.age, u.tin_number, u.pension_number, u.emergency_contact, u.bank_account, u.gross_salary, u.transport_allowance, u.education, DAYS_PER_YEAR]
     );
     userIds[u.email] = result.rows[0].id;
   }

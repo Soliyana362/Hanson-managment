@@ -25,7 +25,7 @@ BEGIN
     age INT,
     hire_date NVARCHAR(10),
     status NVARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'on_leave', 'inactive')),
-    annual_leave_balance INTEGER DEFAULT 20,
+    annual_leave_balance INTEGER DEFAULT 16,
     sick_leave_balance INTEGER DEFAULT 10,
     email_verified_at DATETIME2,
     token_version INT NOT NULL DEFAULT 0,

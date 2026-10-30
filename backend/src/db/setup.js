@@ -83,6 +83,91 @@ async function migrate(driver) {
   await migrateLeaveRequestColumns(driver);
   await migrateDocumentColumns(driver);
   await migrateLeaveTypes(driver);
+  await migrateAnnualLeavePolicy(driver);
+}
+
+async function migrateAnnualLeavePolicy(driver) {
+  if (driver === 'mssql') {
+    await pool.query(`
+      IF OBJECT_ID('dbo.leave_policy_migrations', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.leave_policy_migrations (
+          migration_key NVARCHAR(100) NOT NULL PRIMARY KEY,
+          applied_at DATETIME2 NOT NULL DEFAULT GETDATE()
+        )
+      END
+    `);
+    await pool.query(`
+      DECLARE @defaultConstraint NVARCHAR(128);
+      SELECT @defaultConstraint = dc.name
+      FROM sys.default_constraints dc
+      JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
+      WHERE dc.parent_object_id = OBJECT_ID('dbo.users') AND c.name = 'annual_leave_balance';
+      IF @defaultConstraint IS NOT NULL
+        EXEC('ALTER TABLE dbo.users DROP CONSTRAINT [' + @defaultConstraint + ']');
+      ALTER TABLE dbo.users ADD CONSTRAINT DF_users_annual_leave_balance DEFAULT 16 FOR annual_leave_balance;
+    `);
+  } else if (driver === 'postgres' || driver === 'postgresql' || driver === 'pg') {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS leave_policy_migrations (
+        migration_key VARCHAR(100) PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query('ALTER TABLE users ALTER COLUMN annual_leave_balance SET DEFAULT 16');
+  } else {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS leave_policy_migrations (
+        migration_key VARCHAR(100) PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  }
+
+  const migrationKey = 'annual_leave_entitlement_16_days_v1';
+  const client = await pool.connect();
+  let transactionStarted = false;
+  try {
+    await client.query('BEGIN');
+    transactionStarted = true;
+    const existing = await client.query(
+      'SELECT migration_key FROM leave_policy_migrations WHERE migration_key = $1',
+      [migrationKey]
+    );
+    if (existing.rows[0]) {
+      await client.query('COMMIT');
+      transactionStarted = false;
+      return;
+    }
+
+    // Claim the migration key first so parallel application starts cannot
+    // apply the balance adjustment twice.
+    await client.query(
+      'INSERT INTO leave_policy_migrations (migration_key) VALUES ($1)',
+      [migrationKey]
+    );
+    await client.query(`
+      UPDATE users
+      SET annual_leave_balance = CASE
+        WHEN annual_leave_balance > 4 THEN annual_leave_balance - 4
+        ELSE 0
+      END
+    `);
+    await client.query('COMMIT');
+    transactionStarted = false;
+    console.log('  Updated existing annual leave balances from 20 to 16 days.');
+  } catch (err) {
+    if (transactionStarted) {
+      try { await client.query('ROLLBACK'); } catch {}
+    }
+    const applied = await pool.query(
+      'SELECT migration_key FROM leave_policy_migrations WHERE migration_key = $1',
+      [migrationKey]
+    ).catch(() => ({ rows: [] }));
+    if (!applied.rows[0]) throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // Employees are not required to have an email address, so the sign-in column
@@ -287,7 +372,7 @@ async function migrateRoles(driver) {
         age INTEGER,
         hire_date TEXT,
         status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'on_leave', 'inactive')),
-        annual_leave_balance INTEGER DEFAULT 20,
+        annual_leave_balance INTEGER DEFAULT 16,
         sick_leave_balance INTEGER DEFAULT 10,
         tin_number VARCHAR(50),
         pension_number VARCHAR(50),

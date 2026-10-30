@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { issueEmailVerification, issueAccountSetup } = require('../services/verification');
 const { sendEmailChangeNotice } = require('../services/email');
-const { leaveSummary } = require('../services/leaveAccrual');
+const { DAYS_PER_YEAR, leaveSummary } = require('../services/leaveAccrual');
 const {
   documentsDir,
   leaveDocumentsDir,
@@ -269,12 +269,12 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, role, department_id, position, phone, gender, age, hire_date, manager_id,
-        tin_number, pension_number, emergency_contact, bank_account, gross_salary, transport_allowance, education)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-       RETURNING id, email, first_name, last_name, role, position`,
+        tin_number, pension_number, emergency_contact, bank_account, gross_salary, transport_allowance, education, annual_leave_balance)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+       RETURNING id, email, first_name, last_name, role, position, annual_leave_balance`,
       [input.email, passwordHash, input.first_name, input.last_name, input.role, input.department_id, input.position, input.phone,
         input.gender, input.age, input.hire_date, input.manager_id, input.tin_number, input.pension_number, input.emergency_contact,
-        input.bank_account, input.gross_salary, input.transport_allowance, input.education]
+        input.bank_account, input.gross_salary, input.transport_allowance, input.education, DAYS_PER_YEAR]
     );
     const createdUser = result.rows[0];
     // Employees registered without an email address simply have no sign-in

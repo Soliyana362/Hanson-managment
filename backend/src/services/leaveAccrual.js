@@ -10,10 +10,8 @@
 // same numbers come out on SQLite, PostgreSQL and MSSQL, whose date arithmetic
 // and rounding all differ.
 
-// Days earned per completed year of service (the standard 20-day entitlement).
-const DAYS_PER_YEAR = Number(process.env.ANNUAL_LEAVE_DAYS_PER_YEAR) > 0
-  ? Number(process.env.ANNUAL_LEAVE_DAYS_PER_YEAR)
-  : 20;
+// Days earned per completed year of service (the standard 16-day entitlement).
+const DAYS_PER_YEAR = 16;
 
 function toDate(value) {
   if (value === undefined || value === null || value === '') return null;

@@ -83,7 +83,7 @@ export default function LeaveReview() {
                   <td>{labelFor(LEAVE_TYPE_KEYS, r.leave_type, t)}</td>
                   <td>{formatDate(r.start_date)}</td>
                   <td>{formatDate(r.end_date)}</td>
-                  <td>{r.days_requested}</td>
+                  <td>{Number(r.days_requested)}</td>
                   <td>{r.reason || '—'}</td>
                   <td><span className={`badge badge-${r.status}`}>{labelFor(LEAVE_STATUS_KEYS, r.status, t)}</span></td>
                   <td style={{ display: 'flex', gap: '8px' }}>

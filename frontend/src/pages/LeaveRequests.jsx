@@ -144,7 +144,7 @@ export default function LeaveRequests() {
                   <td>{labelFor(LEAVE_TYPE_KEYS, r.leave_type, t)}</td>
                   <td>{formatDate(r.start_date)}</td>
                   <td>{formatDate(r.end_date)}</td>
-                  <td>{r.days_requested}</td>
+                  <td>{Number(r.days_requested)}</td>
                   <td>{r.reason || '—'}</td>
                   <td>
                     {r.document_id ? (

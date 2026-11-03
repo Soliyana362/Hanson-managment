@@ -32,7 +32,7 @@ export default function Reports() {
   const [searchParams] = useSearchParams();
   const employeeIdFilter = searchParams.get('employeeId');
   const fileInput = useRef(null);
-  const canUpload = ['employee', 'manager'].includes(user?.role) && !employeeIdFilter;
+  const canUpload = ['employee', 'manager', 'hr'].includes(user?.role) && !employeeIdFilter;
   const canSeeTeam = ['manager', 'coo'].includes(user?.role);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);

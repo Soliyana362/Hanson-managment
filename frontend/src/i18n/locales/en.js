@@ -850,7 +850,7 @@ export default {
   },
 
   reports: {
-    openMyReports: 'My reports',
+    addReport: 'Add report',
     viewEmployeeReports: 'View reports',
     employeeReportsTitle: 'Reports for {name}',
     title: 'Employee Reports',

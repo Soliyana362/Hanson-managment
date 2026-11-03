@@ -841,7 +841,7 @@ export default {
   },
 
   reports: {
-    openMyReports: 'የእኔ ሪፖርቶች',
+    addReport: 'ሪፖርት ጨምር',
     viewEmployeeReports: 'ሪፖርቶችን ይመልከቱ',
     employeeReportsTitle: 'የ{name} ሪፖርቶች',
     title: 'የሰራተኞች ሪፖርቶች',

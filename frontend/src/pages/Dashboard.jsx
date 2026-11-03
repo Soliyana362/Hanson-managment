@@ -164,10 +164,10 @@ export default function Dashboard() {
             <p>{t('dashboard.departmentOverviewFor', { department: data?.profile?.department_name || user?.department_name || t('dashboard.your') })}</p>
           )}
         </div>
-        {(isHr || user?.role === 'employee') && (
+        {(isHr || ['employee', 'manager'].includes(user?.role)) && (
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {user?.role === 'employee' && (
-              <Link to="/reports" className="btn btn-primary">{t('reports.openMyReports')}</Link>
+            {['employee', 'manager', 'hr'].includes(user?.role) && (
+              <Link to="/reports" className="btn btn-primary">{t('reports.addReport')}</Link>
             )}
             {isHr && (
               <>

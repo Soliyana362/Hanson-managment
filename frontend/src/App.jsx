@@ -34,7 +34,7 @@ export default function App() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/reports" element={
-        <ProtectedRoute roles={['employee', 'manager', 'coo']}>
+        <ProtectedRoute roles={['employee', 'manager', 'hr', 'coo']}>
           <Layout><Reports /></Layout>
         </ProtectedRoute>
       } />

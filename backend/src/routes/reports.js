@@ -205,7 +205,7 @@ function reportScope(user) {
   return { sql: 'AND u.id = $1', params: [user.id] };
 }
 
-router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (req, res) => {
+router.get('/', authenticate, authorize('employee', 'manager', 'hr', 'coo'), async (req, res) => {
   try {
     await ensureReportTables();
     const scope = reportScope(req.user);
@@ -263,7 +263,7 @@ router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (re
   }
 });
 
-router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(uploadReport, 'report'), async (req, res) => {
+router.post('/', authenticate, authorize('employee', 'manager', 'hr'), uploadSingle(uploadReport, 'report'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Choose a report file to upload' });
   const period = parseReportPeriod(req.body);
   if (!period) return res.status(400).json({ error: 'Choose a valid report type, quarter, and date range' });
@@ -368,7 +368,7 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
   }
 });
 
-router.get('/:id/file', authenticate, authorize('employee', 'manager', 'coo'), async (req, res) => {
+router.get('/:id/file', authenticate, authorize('employee', 'manager', 'hr', 'coo'), async (req, res) => {
   try {
     await ensureReportTables();
     const reportKey = parseReportKey(req.params.id);

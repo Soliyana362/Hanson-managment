@@ -123,6 +123,11 @@ export default function EmployeeDetail() {
                 {t('employees.removeEmployee')}
               </button>
             )}
+            {['manager', 'coo'].includes(user?.role) && ['employee', 'manager'].includes(profile.role) && (
+              <Link to={`/reports?employeeId=${profile.id}`} className="btn btn-primary">
+                {t('reports.viewEmployeeReports')}
+              </Link>
+            )}
             <Link to={user?.role === 'coo' ? '/coo' : '/employees'} className="btn btn-secondary btn-sm">{t('common.back')}</Link>
           </div>
         </div>

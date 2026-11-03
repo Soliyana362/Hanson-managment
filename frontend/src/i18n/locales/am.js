@@ -841,6 +841,9 @@ export default {
   },
 
   reports: {
+    openMyReports: 'የእኔ ሪፖርቶች',
+    viewEmployeeReports: 'ሪፖርቶችን ይመልከቱ',
+    employeeReportsTitle: 'የ{name} ሪፖርቶች',
     title: 'የሰራተኞች ሪፖርቶች',
     subtitle: 'በየሶስት ወሩ እና ዓመታዊ ሪፖርቶችን ያስገቡ። ሪፖርቶችዎ ለቀጥተኛ አስተዳዳሪዎ እና ለCEO ይታያሉ።',
     submitTitle: 'ሪፖርት አስገባ',

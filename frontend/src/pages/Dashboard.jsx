@@ -164,15 +164,22 @@ export default function Dashboard() {
             <p>{t('dashboard.departmentOverviewFor', { department: data?.profile?.department_name || user?.department_name || t('dashboard.your') })}</p>
           )}
         </div>
-        {isHr && (
+        {(isHr || user?.role === 'employee') && (
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={openAdd}>
-              + {t('employees.addEmployee')}
-            </button>
-            {user?.role === 'admin' && (
-              <button className="btn btn-secondary" onClick={openAddCoo}>
-                + {t('employees.addCoo')}
-              </button>
+            {user?.role === 'employee' && (
+              <Link to="/reports" className="btn btn-primary">{t('reports.openMyReports')}</Link>
+            )}
+            {isHr && (
+              <>
+                <button className="btn btn-primary" onClick={openAdd}>
+                  + {t('employees.addEmployee')}
+                </button>
+                {user?.role === 'admin' && (
+                  <button className="btn btn-secondary" onClick={openAddCoo}>
+                    + {t('employees.addCoo')}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}

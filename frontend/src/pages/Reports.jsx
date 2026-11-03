@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../i18n';
 import api from '../api/client';
+import { useSearchParams } from 'react-router-dom';
 import './Reports.css';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -28,8 +29,10 @@ function formatSize(bytes) {
 export default function Reports() {
   const { user } = useAuth();
   const { t, locale } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const employeeIdFilter = searchParams.get('employeeId');
   const fileInput = useRef(null);
-  const canUpload = ['employee', 'manager'].includes(user?.role);
+  const canUpload = ['employee', 'manager'].includes(user?.role) && !employeeIdFilter;
   const canSeeTeam = ['manager', 'coo'].includes(user?.role);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,10 +67,15 @@ export default function Reports() {
   }, [loadReports]);
 
   const years = useMemo(
-    () => [...new Set(reports.map((report) => Number(report.report_year)))].sort((a, b) => b - a),
-    [reports]
+    () => [...new Set(reports
+      .filter((report) => !employeeIdFilter || String(report.user_id) === employeeIdFilter)
+      .map((report) => Number(report.report_year)))].sort((a, b) => b - a),
+    [reports, employeeIdFilter]
   );
-  const filteredReports = reports.filter((report) => (
+  const reportsForEmployee = employeeIdFilter
+    ? reports.filter((report) => String(report.user_id) === employeeIdFilter)
+    : reports;
+  const filteredReports = reportsForEmployee.filter((report) => (
     (typeFilter === 'all' || report.report_type === typeFilter)
     && (yearFilter === 'all' || Number(report.report_year) === Number(yearFilter))
   ));
@@ -163,7 +171,13 @@ export default function Reports() {
     }
   };
 
-  const reportTitle = canSeeTeam ? t('reports.teamTitle') : t('reports.listTitle');
+  const selectedEmployee = employeeIdFilter ? reportsForEmployee[0] : null;
+  const selectedEmployeeName = selectedEmployee
+    ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`.trim()
+    : '';
+  const reportTitle = canSeeTeam && selectedEmployeeName
+    ? t('reports.employeeReportsTitle', { name: selectedEmployeeName })
+    : canSeeTeam ? t('reports.teamTitle') : t('reports.listTitle');
 
   return (
     <div className="reports-page">

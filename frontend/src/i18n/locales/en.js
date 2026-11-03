@@ -850,6 +850,9 @@ export default {
   },
 
   reports: {
+    openMyReports: 'My reports',
+    viewEmployeeReports: 'View reports',
+    employeeReportsTitle: 'Reports for {name}',
     title: 'Employee Reports',
     subtitle: 'Submit quarterly and annual reports. Your reports are visible to your manager and the CEO.',
     submitTitle: 'Submit a report',

@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
-const { parseId } = require('../security');
+const { normalizeDate, parseId } = require('../security');
 const { safeOriginalName, uploadReport, uploadSingle, hasSignatureBuffer } = require('../fileStore');
 
 const router = express.Router();
@@ -68,6 +68,8 @@ function ensureReportTables() {
              report_year INT NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
              report_quarter INT NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
              report_months NVARCHAR(20) NOT NULL,
+             report_start_date NVARCHAR(10) NOT NULL,
+             report_end_date NVARCHAR(10) NOT NULL,
              original_name NVARCHAR(255) NOT NULL,
              mime_type NVARCHAR(100) NOT NULL,
              size_bytes BIGINT NOT NULL,
@@ -83,6 +85,8 @@ function ensureReportTables() {
              report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
              report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
              report_months VARCHAR(20) NOT NULL,
+             report_start_date VARCHAR(10) NOT NULL,
+             report_end_date VARCHAR(10) NOT NULL,
              original_name VARCHAR(255) NOT NULL,
              mime_type VARCHAR(100) NOT NULL,
              size_bytes INTEGER NOT NULL,
@@ -96,6 +100,8 @@ function ensureReportTables() {
              report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
              report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
              report_months VARCHAR(20) NOT NULL,
+             report_start_date VARCHAR(10) NOT NULL,
+             report_end_date VARCHAR(10) NOT NULL,
              original_name VARCHAR(255) NOT NULL,
              mime_type VARCHAR(100) NOT NULL,
              size_bytes INTEGER NOT NULL,
@@ -114,13 +120,25 @@ function ensureReportTables() {
         await pool.query(`
           IF COL_LENGTH('dbo.employee_quarterly_reports', 'report_months') IS NULL
             ALTER TABLE employee_quarterly_reports ADD report_months NVARCHAR(20) NULL
+          IF COL_LENGTH('dbo.employee_quarterly_reports', 'report_start_date') IS NULL
+            ALTER TABLE employee_quarterly_reports ADD report_start_date NVARCHAR(10) NULL
+          IF COL_LENGTH('dbo.employee_quarterly_reports', 'report_end_date') IS NULL
+            ALTER TABLE employee_quarterly_reports ADD report_end_date NVARCHAR(10) NULL
         `);
       } else if (IS_POSTGRES) {
         await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN IF NOT EXISTS report_months VARCHAR(20)');
+        await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN IF NOT EXISTS report_start_date VARCHAR(10)');
+        await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN IF NOT EXISTS report_end_date VARCHAR(10)');
       } else {
         const columns = await pool.query("PRAGMA table_info('employee_quarterly_reports')");
         if (!columns.rows.some((row) => row.name === 'report_months')) {
           await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN report_months VARCHAR(20)');
+        }
+        if (!columns.rows.some((row) => row.name === 'report_start_date')) {
+          await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN report_start_date VARCHAR(10)');
+        }
+        if (!columns.rows.some((row) => row.name === 'report_end_date')) {
+          await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN report_end_date VARCHAR(10)');
         }
       }
 
@@ -144,20 +162,26 @@ function ensureReportTables() {
 
 function parseReportPeriod(body) {
   const reportType = String(body?.reportType || '').trim().toLowerCase();
-  const yearText = String(body?.year || '').trim();
-  const year = Number(yearText);
   if (!['quarterly', 'annual'].includes(reportType)) return null;
-  if (!/^\d{4}$/.test(yearText) || !Number.isInteger(year) || year < 1900 || year > 2100) return null;
+  if (reportType === 'annual') {
+    const yearText = String(body?.year || '').trim();
+    const year = Number(yearText);
+    if (!/^\d{4}$/.test(yearText) || !Number.isInteger(year) || year < 1900 || year > 2100) return null;
+    return { reportType, year, quarter: 0, months: [] };
+  }
 
-  if (reportType === 'annual') return { reportType, year, quarter: 0, months: [] };
   const quarterText = String(body?.quarter || '').trim();
   const quarter = Number(quarterText);
   if (!/^[1-4]$/.test(quarterText) || !Number.isInteger(quarter)) return null;
-  const monthTexts = String(body?.months || '').split(',').map((value) => value.trim());
-  if (monthTexts.length !== 3 || monthTexts.some((value) => !/^(0?[1-9]|1[0-2])$/.test(value))) return null;
-  const months = monthTexts.map(Number);
-  if (months[1] !== months[0] + 1 || months[2] !== months[1] + 1) return null;
-  return { reportType, year, quarter, months };
+  const startDate = normalizeDate(body?.startDate);
+  const endDate = normalizeDate(body?.endDate);
+  if (!startDate || !endDate || endDate < startDate) return null;
+  const year = Number(startDate.slice(0, 4));
+  if (year < 1900 || year > 2100 || endDate.slice(0, 4) !== String(year)) return null;
+  const firstMonth = Number(startDate.slice(5, 7));
+  const lastMonth = Number(endDate.slice(5, 7));
+  const months = Array.from({ length: lastMonth - firstMonth + 1 }, (_, index) => firstMonth + index);
+  return { reportType, year, quarter, startDate, endDate, months };
 }
 
 function parseReportKey(value) {
@@ -201,7 +225,8 @@ router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (re
       pool.query(
         `SELECT er.id, er.user_id, u.first_name, u.last_name, u.position,
                 d.name AS department_name, 'quarterly' AS report_type,
-                er.report_year, er.report_quarter, er.report_months, er.original_name,
+                er.report_year, er.report_quarter, er.report_months,
+                er.report_start_date, er.report_end_date, er.original_name,
                 er.mime_type, er.size_bytes, er.created_at
          FROM employee_quarterly_reports er
          JOIN users u ON u.id = er.user_id
@@ -213,7 +238,19 @@ router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (re
     ]);
     const reports = [
       ...annualResult.rows.map((report) => ({ ...report, id: `annual-${report.id}` })),
-      ...quarterlyResult.rows.map((report) => ({ ...report, id: `quarterly-${report.id}` })),
+      ...quarterlyResult.rows.map((report) => {
+        if (!report.report_start_date || !report.report_end_date) {
+          const months = String(report.report_months || '').split(',').map(Number).filter(Boolean);
+          if (months.length) {
+            const firstMonth = months[0];
+            const lastMonth = months[months.length - 1];
+            const lastDay = new Date(Number(report.report_year), lastMonth, 0).getDate();
+            report.report_start_date = `${report.report_year}-${String(firstMonth).padStart(2, '0')}-01`;
+            report.report_end_date = `${report.report_year}-${String(lastMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+          }
+        }
+        return { ...report, id: `quarterly-${report.id}` };
+      }),
     ].sort((a, b) => (
       Number(b.report_year) - Number(a.report_year)
       || Number(b.report_quarter) - Number(a.report_quarter)
@@ -229,7 +266,7 @@ router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (re
 router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(uploadReport, 'report'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Choose a report file to upload' });
   const period = parseReportPeriod(req.body);
-  if (!period) return res.status(400).json({ error: 'Choose a valid report type and year; quarterly reports also need a valid quarter' });
+  if (!period) return res.status(400).json({ error: 'Choose a valid report type, quarter, and date range' });
   if (!hasSignatureBuffer(req.file.buffer, req.file.mimetype)) {
     return res.status(400).json({ error: 'File content does not match its type' });
   }
@@ -273,23 +310,36 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
          WHERE user_id = $1 AND report_year = $2 AND report_quarter = $3`,
         [req.user.id, period.year, period.quarter]
       );
-      const values = [period.year, period.quarter, period.months.join(','), safeOriginalName(req.file.originalname), req.file.mimetype, req.file.size, req.file.buffer];
+      const values = [
+        period.year,
+        period.quarter,
+        period.months.join(','),
+        period.startDate,
+        period.endDate,
+        safeOriginalName(req.file.originalname),
+        req.file.mimetype,
+        req.file.size,
+        req.file.buffer,
+      ];
       saved = existing.rows[0]
         ? await client.query(
           `UPDATE employee_quarterly_reports
            SET report_year = $1, report_quarter = $2, report_months = $3,
-               original_name = $4, mime_type = $5, size_bytes = $6,
-               data = $7, created_at = CURRENT_TIMESTAMP
-           WHERE id = $8
+               report_start_date = $4, report_end_date = $5,
+               original_name = $6, mime_type = $7, size_bytes = $8,
+               data = $9, created_at = CURRENT_TIMESTAMP
+           WHERE id = $10
            RETURNING id, user_id, report_year, report_quarter, report_months,
+                     report_start_date, report_end_date,
                      original_name, mime_type, size_bytes, created_at`,
           [...values, existing.rows[0].id]
         )
         : await client.query(
           `INSERT INTO employee_quarterly_reports
-            (user_id, report_year, report_quarter, report_months, original_name, mime_type, size_bytes, data)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (user_id, report_year, report_quarter, report_months, report_start_date, report_end_date, original_name, mime_type, size_bytes, data)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, user_id, report_year, report_quarter, report_months,
+                     report_start_date, report_end_date,
                      original_name, mime_type, size_bytes, created_at`,
           [req.user.id, ...values]
         );
@@ -303,6 +353,8 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
       report_type: period.reportType,
       report_quarter: period.quarter,
       report_months: period.months.join(','),
+      report_start_date: period.startDate,
+      report_end_date: period.endDate,
     });
   } catch (err) {
     if (transactionStarted) {

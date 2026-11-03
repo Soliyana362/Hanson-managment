@@ -14,6 +14,7 @@ export default {
     all: 'All',
     none: 'None',
     unknown: 'Unknown',
+    unassigned: 'Unassigned',
     yes: 'Yes',
     no: 'No',
     actions: 'Actions',

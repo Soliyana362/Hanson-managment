@@ -60,10 +60,11 @@ router.get('/', authenticate, async (req, res) => {
            GROUP BY u.status`,
           managerParam
         ),
-pool.query(
+        pool.query(
           `SELECT d.name AS department_name, COUNT(u.id) AS count
-           FROM departments d
-           LEFT JOIN users u ON u.department_id = d.id AND u.role = 'employee' ${isManager ? `WHERE u.manager_id = $1` : ''}
+           FROM users u
+           LEFT JOIN departments d ON d.id = u.department_id
+           WHERE u.role = 'employee' ${isManager ? 'AND u.manager_id = $1' : ''}
            GROUP BY d.name ORDER BY d.name`,
           isManager ? [userId] : undefined
         ),
@@ -71,7 +72,10 @@ pool.query(
       teamStats = {
         ...teamRes.rows[0],
         by_status: statusRes.rows,
-        by_department: deptRes.rows,
+        by_department: deptRes.rows.map((department) => ({
+          ...department,
+          count: Number(department.count) || 0,
+        })),
       };
     }
 

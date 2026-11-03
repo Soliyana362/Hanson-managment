@@ -14,6 +14,7 @@ export default {
     all: 'ሁሉም',
     none: 'ምንም',
     unknown: 'ያልታወቀ',
+    unassigned: 'ያልተመደበ',
     yes: 'አዎ',
     no: 'አይ',
     actions: 'እርምጃዎች',

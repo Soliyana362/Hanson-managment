@@ -8,12 +8,14 @@ const STATUS_COLORS = {
 };
 
 export default function EmployeeStatusChart({ team }) {
-  const { t } = useLanguage();
+  const { t, formatNumber } = useLanguage();
   if (!team) return null;
 
   const total = team.total_employees ?? 0;
   const byStatus = team.by_status ?? [];
-  const byDepartment = team.by_department ?? [];
+  const byDepartment = [...(team.by_department ?? [])]
+    .map((department) => ({ ...department, count: Number(department.count) || 0 }))
+    .sort((left, right) => right.count - left.count);
 
   let acc = 0;
   const segments = byStatus
@@ -64,12 +66,14 @@ export default function EmployeeStatusChart({ team }) {
         <div className="bar-chart">
           {byDepartment.length === 0 && <p className="empty-state">{t('statusChart.noData')}</p>}
           {byDepartment.map((d) => (
-            <div className="bar-row" key={d.department_name}>
-              <span className="bar-label">{d.department_name}</span>
+            <div className="bar-row" key={d.department_name || 'unassigned'}>
+              <span className="bar-label" title={d.department_name || t('common.unassigned')}>
+                {d.department_name || t('common.unassigned')}
+              </span>
               <div className="bar-track">
                 <div className="bar-fill" style={{ width: `${(d.count / maxDept) * 100}%` }} />
               </div>
-              <span className="bar-value">{d.count}</span>
+              <span className="bar-value">{formatNumber(d.count)}</span>
             </div>
           ))}
         </div>

@@ -568,17 +568,23 @@ th {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .bar-label {
-  width: 120px;
+  flex: 0 1 120px;
+  min-width: 0;
   font-size: 0.85rem;
   color: var(--text-muted);
   text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bar-track {
   flex: 1;
+  min-width: 24px;
   height: 22px;
   background: #EAF3EC;
   border-radius: 6px;
@@ -594,9 +600,13 @@ th {
 }
 
 .bar-value {
-  width: 24px;
+  flex: 0 0 auto;
+  min-width: 36px;
   font-weight: 700;
   color: var(--primary-dark);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {
@@ -634,7 +644,7 @@ th {
     padding: 32px 16px;
   }
   .bar-label {
-    width: 84px;
+    flex-basis: 84px;
     font-size: 0.75rem;
   }
   .donut {
@@ -657,7 +667,7 @@ th {
     gap: 16px;
   }
   .bar-label {
-    width: 64px;
+    flex-basis: 64px;
   }
 }
 

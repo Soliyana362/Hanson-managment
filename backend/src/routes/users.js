@@ -256,6 +256,9 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
     const role = body.role === undefined ? 'employee' : String(body.role);
     if (!canAssignRole(req.user.role, role)) return res.status(403).json({ error: 'You cannot assign that role' });
     const input = parseEmployeeInput({ ...body, role });
+    if (input.role === 'employee' && !input.department_id) {
+      return res.status(400).json({ error: 'A department is required for employees' });
+    }
     await ensureDepartment(input.department_id);
     await ensureManager(input.manager_id);
     // HR does not choose the password: when none is supplied we generate a
@@ -271,7 +274,7 @@ router.post('/', authenticate, authorize('hr', 'admin'), async (req, res) => {
       `INSERT INTO users (email, password_hash, first_name, last_name, role, department_id, position, phone, gender, age, hire_date, manager_id,
         tin_number, pension_number, emergency_contact, bank_account, gross_salary, transport_allowance, education, annual_leave_balance)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-       RETURNING id, email, first_name, last_name, role, position, annual_leave_balance`,
+       RETURNING id, email, first_name, last_name, role, department_id, position, annual_leave_balance`,
       [input.email, passwordHash, input.first_name, input.last_name, input.role, input.department_id, input.position, input.phone,
         input.gender, input.age, input.hire_date, input.manager_id, input.tin_number, input.pension_number, input.emergency_contact,
         input.bank_account, input.gross_salary, input.transport_allowance, input.education, DAYS_PER_YEAR]

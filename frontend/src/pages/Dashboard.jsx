@@ -359,7 +359,7 @@ export default function Dashboard() {
                 </div>
                 <div className="form-group">
                   <label>{t('common.department')}</label>
-                  <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })}>
+                  <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} required={form.role === 'employee'}>
                     <option value="">—</option>
                     {departments.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>

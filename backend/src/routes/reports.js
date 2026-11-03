@@ -8,11 +8,11 @@ const router = express.Router();
 const DB_DRIVER = String(process.env.DB_DRIVER || 'sqlite').toLowerCase();
 const IS_POSTGRES = ['postgres', 'postgresql', 'pg'].includes(DB_DRIVER);
 const IS_MSSQL = DB_DRIVER === 'mssql';
-let reportTableReady = null;
+let reportTablesReady = null;
 
-function ensureReportTable() {
-  if (!reportTableReady) {
-    const createTable = IS_MSSQL
+function ensureReportTables() {
+  if (!reportTablesReady) {
+    const createAnnualTable = IS_MSSQL
       ? `IF OBJECT_ID('dbo.employee_reports', 'U') IS NULL
          BEGIN
            CREATE TABLE employee_reports (
@@ -59,27 +59,78 @@ function ensureReportTable() {
              UNIQUE (user_id, report_year, report_month),
              CHECK ((report_type = 'monthly' AND report_month BETWEEN 1 AND 12) OR (report_type = 'annual' AND report_month = 0))
            )`;
+    const createQuarterlyTable = IS_MSSQL
+      ? `IF OBJECT_ID('dbo.employee_quarterly_reports', 'U') IS NULL
+         BEGIN
+           CREATE TABLE employee_quarterly_reports (
+             id INT IDENTITY(1,1) PRIMARY KEY,
+             user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+             report_year INT NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+             report_quarter INT NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+             original_name NVARCHAR(255) NOT NULL,
+             mime_type NVARCHAR(100) NOT NULL,
+             size_bytes BIGINT NOT NULL,
+             data VARBINARY(MAX) NOT NULL,
+             created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120),
+             CONSTRAINT UQ_employee_quarterly_reports_period UNIQUE (user_id, report_year, report_quarter)
+           );
+         END`
+      : IS_POSTGRES
+        ? `CREATE TABLE IF NOT EXISTS employee_quarterly_reports (
+             id SERIAL PRIMARY KEY,
+             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+             report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+             report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+             original_name VARCHAR(255) NOT NULL,
+             mime_type VARCHAR(100) NOT NULL,
+             size_bytes INTEGER NOT NULL,
+             data BYTEA NOT NULL,
+             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+             UNIQUE (user_id, report_year, report_quarter)
+           )`
+        : `CREATE TABLE IF NOT EXISTS employee_quarterly_reports (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+             report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+             report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+             original_name VARCHAR(255) NOT NULL,
+             mime_type VARCHAR(100) NOT NULL,
+             size_bytes INTEGER NOT NULL,
+             data BLOB NOT NULL,
+             created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+             UNIQUE (user_id, report_year, report_quarter)
+           )`;
 
-    reportTableReady = pool.query(createTable).catch((err) => {
-      reportTableReady = null;
+    reportTablesReady = Promise.all([
+      pool.query(createAnnualTable),
+      pool.query(createQuarterlyTable),
+    ]).catch((err) => {
+      reportTablesReady = null;
       throw err;
     });
   }
-  return reportTableReady;
+  return reportTablesReady;
 }
 
 function parseReportPeriod(body) {
   const reportType = String(body?.reportType || '').trim().toLowerCase();
   const yearText = String(body?.year || '').trim();
   const year = Number(yearText);
-  if (!['monthly', 'annual'].includes(reportType)) return null;
+  if (!['quarterly', 'annual'].includes(reportType)) return null;
   if (!/^\d{4}$/.test(yearText) || !Number.isInteger(year) || year < 1900 || year > 2100) return null;
 
-  if (reportType === 'annual') return { reportType, year, month: 0 };
-  const monthText = String(body?.month || '').trim();
-  const month = Number(monthText);
-  if (!/^(0?[1-9]|1[0-2])$/.test(monthText) || !Number.isInteger(month)) return null;
-  return { reportType, year, month };
+  if (reportType === 'annual') return { reportType, year, quarter: 0 };
+  const quarterText = String(body?.quarter || '').trim();
+  const quarter = Number(quarterText);
+  if (!/^[1-4]$/.test(quarterText) || !Number.isInteger(quarter)) return null;
+  return { reportType, year, quarter };
+}
+
+function parseReportKey(value) {
+  const match = /^(quarterly|annual)-(\d{1,15})$/.exec(String(value || ''));
+  if (!match) return null;
+  const id = parseId(match[2]);
+  return id ? { reportType: match[1], id } : null;
 }
 
 function periodError(err) {
@@ -88,31 +139,53 @@ function periodError(err) {
     || /duplicate key|unique constraint/i.test(err?.message || '');
 }
 
+function reportScope(user) {
+  if (user.role === 'coo') return { sql: '', params: [] };
+  if (user.role === 'manager') {
+    return { sql: 'AND (u.id = $1 OR u.manager_id = $1)', params: [user.id] };
+  }
+  return { sql: 'AND u.id = $1', params: [user.id] };
+}
+
 router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (req, res) => {
   try {
-    await ensureReportTable();
-    let where = '';
-    const params = [];
-    if (req.user.role === 'manager') {
-      where = 'WHERE (u.id = $1 OR u.manager_id = $1)';
-      params.push(req.user.id);
-    } else if (req.user.role !== 'coo') {
-      where = 'WHERE u.id = $1';
-      params.push(req.user.id);
-    }
-
-    const result = await pool.query(
-      `SELECT er.id, er.user_id, u.first_name, u.last_name, u.position,
-              d.name AS department_name, er.report_type, er.report_year,
-              er.report_month, er.original_name, er.mime_type, er.size_bytes, er.created_at
-       FROM employee_reports er
-       JOIN users u ON u.id = er.user_id
-       LEFT JOIN departments d ON d.id = u.department_id
-       ${where}
-       ORDER BY er.report_year DESC, er.report_month DESC, er.created_at DESC`,
-      params
-    );
-    res.json(result.rows);
+    await ensureReportTables();
+    const scope = reportScope(req.user);
+    const [annualResult, quarterlyResult] = await Promise.all([
+      pool.query(
+        `SELECT er.id, er.user_id, u.first_name, u.last_name, u.position,
+                d.name AS department_name, 'annual' AS report_type,
+                er.report_year, 0 AS report_quarter, er.original_name,
+                er.mime_type, er.size_bytes, er.created_at
+         FROM employee_reports er
+         JOIN users u ON u.id = er.user_id
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE er.report_type = 'annual' ${scope.sql}
+         ORDER BY er.report_year DESC, er.created_at DESC`,
+        scope.params
+      ),
+      pool.query(
+        `SELECT er.id, er.user_id, u.first_name, u.last_name, u.position,
+                d.name AS department_name, 'quarterly' AS report_type,
+                er.report_year, er.report_quarter, er.original_name,
+                er.mime_type, er.size_bytes, er.created_at
+         FROM employee_quarterly_reports er
+         JOIN users u ON u.id = er.user_id
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE 1 = 1 ${scope.sql}
+         ORDER BY er.report_year DESC, er.report_quarter DESC, er.created_at DESC`,
+        scope.params
+      ),
+    ]);
+    const reports = [
+      ...annualResult.rows.map((report) => ({ ...report, id: `annual-${report.id}` })),
+      ...quarterlyResult.rows.map((report) => ({ ...report, id: `quarterly-${report.id}` })),
+    ].sort((a, b) => (
+      Number(b.report_year) - Number(a.report_year)
+      || Number(b.report_quarter) - Number(a.report_quarter)
+      || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ));
+    res.json(reports);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Failed to load employee reports' });
@@ -122,7 +195,7 @@ router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (re
 router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(uploadReport, 'report'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Choose a report file to upload' });
   const period = parseReportPeriod(req.body);
-  if (!period) return res.status(400).json({ error: 'Choose a valid report type, year, and month' });
+  if (!period) return res.status(400).json({ error: 'Choose a valid report type and year; quarterly reports also need a valid quarter' });
   if (!hasSignatureBuffer(req.file.buffer, req.file.mimetype)) {
     return res.status(400).json({ error: 'File content does not match its type' });
   }
@@ -130,49 +203,71 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
   let client;
   let transactionStarted = false;
   try {
-    await ensureReportTable();
+    await ensureReportTables();
     client = await pool.connect();
     await client.query('BEGIN');
     transactionStarted = true;
 
-    const existing = await client.query(
-      `SELECT id FROM employee_reports
-       WHERE user_id = $1 AND report_year = $2 AND report_month = $3`,
-      [req.user.id, period.year, period.month]
-    );
-    const values = [
-      period.reportType,
-      period.year,
-      period.month,
-      safeOriginalName(req.file.originalname),
-      req.file.mimetype,
-      req.file.size,
-      req.file.buffer,
-    ];
-
-    const saved = existing.rows[0]
-      ? await client.query(
-        `UPDATE employee_reports
-         SET report_type = $1, report_year = $2, report_month = $3,
-             original_name = $4, mime_type = $5, size_bytes = $6, data = $7,
-             created_at = CURRENT_TIMESTAMP
-         WHERE id = $8
-         RETURNING id, user_id, report_type, report_year, report_month,
-                   original_name, mime_type, size_bytes, created_at`,
-        [...values, existing.rows[0].id]
-      )
-      : await client.query(
-        `INSERT INTO employee_reports
-          (user_id, report_type, report_year, report_month, original_name, mime_type, size_bytes, data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, user_id, report_type, report_year, report_month,
-                   original_name, mime_type, size_bytes, created_at`,
-        [req.user.id, ...values]
+    let existing;
+    let saved;
+    if (period.reportType === 'annual') {
+      existing = await client.query(
+        `SELECT id FROM employee_reports
+         WHERE user_id = $1 AND report_type = 'annual' AND report_year = $2 AND report_month = 0`,
+        [req.user.id, period.year]
       );
+      const values = [safeOriginalName(req.file.originalname), req.file.mimetype, req.file.size, req.file.buffer];
+      saved = existing.rows[0]
+        ? await client.query(
+          `UPDATE employee_reports
+           SET original_name = $1, mime_type = $2, size_bytes = $3, data = $4,
+               created_at = CURRENT_TIMESTAMP
+           WHERE id = $5
+           RETURNING id, user_id, report_year, original_name, mime_type, size_bytes, created_at`,
+          [...values, existing.rows[0].id]
+        )
+        : await client.query(
+          `INSERT INTO employee_reports
+            (user_id, report_type, report_year, report_month, original_name, mime_type, size_bytes, data)
+           VALUES ($1, 'annual', $2, 0, $3, $4, $5, $6)
+           RETURNING id, user_id, report_year, original_name, mime_type, size_bytes, created_at`,
+          [req.user.id, period.year, ...values]
+        );
+    } else {
+      existing = await client.query(
+        `SELECT id FROM employee_quarterly_reports
+         WHERE user_id = $1 AND report_year = $2 AND report_quarter = $3`,
+        [req.user.id, period.year, period.quarter]
+      );
+      const values = [period.year, period.quarter, safeOriginalName(req.file.originalname), req.file.mimetype, req.file.size, req.file.buffer];
+      saved = existing.rows[0]
+        ? await client.query(
+          `UPDATE employee_quarterly_reports
+           SET report_year = $1, report_quarter = $2, original_name = $3,
+               mime_type = $4, size_bytes = $5, data = $6, created_at = CURRENT_TIMESTAMP
+           WHERE id = $7
+           RETURNING id, user_id, report_year, report_quarter,
+                     original_name, mime_type, size_bytes, created_at`,
+          [...values, existing.rows[0].id]
+        )
+        : await client.query(
+          `INSERT INTO employee_quarterly_reports
+            (user_id, report_year, report_quarter, original_name, mime_type, size_bytes, data)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, user_id, report_year, report_quarter,
+                     original_name, mime_type, size_bytes, created_at`,
+          [req.user.id, ...values]
+        );
+    }
 
     await client.query('COMMIT');
     transactionStarted = false;
-    res.status(existing.rows[0] ? 200 : 201).json(saved.rows[0]);
+    res.status(existing.rows[0] ? 200 : 201).json({
+      ...saved.rows[0],
+      id: `${period.reportType}-${saved.rows[0].id}`,
+      report_type: period.reportType,
+      report_quarter: period.quarter,
+    });
   } catch (err) {
     if (transactionStarted) {
       try { await client.query('ROLLBACK'); } catch {}
@@ -187,23 +282,28 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
 
 router.get('/:id/file', authenticate, authorize('employee', 'manager', 'coo'), async (req, res) => {
   try {
-    await ensureReportTable();
-    const reportId = parseId(req.params.id);
-    if (!reportId) return res.status(400).json({ error: 'Report id is invalid' });
-    const result = await pool.query(
-      `SELECT er.*, u.manager_id
-       FROM employee_reports er JOIN users u ON u.id = er.user_id
-       WHERE er.id = $1`,
-      [reportId]
-    );
+    await ensureReportTables();
+    const reportKey = parseReportKey(req.params.id);
+    if (!reportKey) return res.status(400).json({ error: 'Report id is invalid' });
+    const result = reportKey.reportType === 'annual'
+      ? await pool.query(
+        `SELECT er.*, u.manager_id
+         FROM employee_reports er JOIN users u ON u.id = er.user_id
+         WHERE er.id = $1 AND er.report_type = 'annual'`,
+        [reportKey.id]
+      )
+      : await pool.query(
+        `SELECT er.*, u.manager_id
+         FROM employee_quarterly_reports er JOIN users u ON u.id = er.user_id
+         WHERE er.id = $1`,
+        [reportKey.id]
+      );
     const report = result.rows[0];
     if (!report) return res.status(404).json({ error: 'Report not found' });
     const canView = Number(req.user.id) === Number(report.user_id)
       || req.user.role === 'coo'
       || (req.user.role === 'manager' && Number(req.user.id) === Number(report.manager_id));
-    if (!canView) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
+    if (!canView) return res.status(403).json({ error: 'Insufficient permissions' });
 
     res.set({
       'Content-Type': report.mime_type || 'application/octet-stream',

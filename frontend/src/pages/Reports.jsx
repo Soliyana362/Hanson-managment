@@ -15,7 +15,7 @@ function formatSize(bytes) {
 
 export default function Reports() {
   const { user } = useAuth();
-  const { t, language, locale } = useLanguage();
+  const { t, locale } = useLanguage();
   const fileInput = useRef(null);
   const canUpload = ['employee', 'manager'].includes(user?.role);
   const canSeeTeam = ['manager', 'coo'].includes(user?.role);
@@ -25,9 +25,9 @@ export default function Reports() {
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [reportType, setReportType] = useState('monthly');
+  const [reportType, setReportType] = useState('quarterly');
   const [year, setYear] = useState(String(CURRENT_YEAR));
-  const [month, setMonth] = useState(String(new Date().getMonth() + 1));
+  const [quarter, setQuarter] = useState(String(Math.floor(new Date().getMonth() / 3) + 1));
   const [file, setFile] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
@@ -58,14 +58,18 @@ export default function Reports() {
     && (yearFilter === 'all' || Number(report.report_year) === Number(yearFilter))
   ));
 
-  const monthName = (monthNumber) => new Intl.DateTimeFormat(
-    language === 'am' ? 'am-ET-u-ca-gregory' : 'en',
-    { month: 'long', timeZone: 'UTC' }
-  ).format(new Date(Date.UTC(2025, Number(monthNumber) - 1, 1)));
-
-  const reportPeriod = (report) => report.report_type === 'monthly'
-    ? `${monthName(report.report_month)} ${report.report_year}`
+  const reportPeriod = (report) => report.report_type === 'quarterly'
+    ? `${t('reports.quarterLabel', { quarter: report.report_quarter })} ${report.report_year}`
     : String(report.report_year);
+
+  const quarterRangeLabel = (quarterNumber) => {
+    const monthLocale = locale.startsWith('am') ? 'am-ET-u-ca-gregory' : locale;
+    const formatter = new Intl.DateTimeFormat(monthLocale, { month: 'short', timeZone: 'UTC' });
+    const firstMonth = (quarterNumber - 1) * 3;
+    const start = formatter.format(new Date(Date.UTC(2025, firstMonth, 1)));
+    const end = formatter.format(new Date(Date.UTC(2025, firstMonth + 2, 1)));
+    return `${t('reports.quarterLabel', { quarter: quarterNumber })} (${start}–${end})`;
+  };
 
   const uploadedDate = (value) => {
     const dateValue = String(value || '').replace(' ', 'T');
@@ -86,7 +90,7 @@ export default function Reports() {
     const formData = new FormData();
     formData.append('reportType', reportType);
     formData.append('year', year);
-    if (reportType === 'monthly') formData.append('month', month);
+    if (reportType === 'quarterly') formData.append('quarter', quarter);
     formData.append('report', file);
 
     setUploading(true);
@@ -141,16 +145,18 @@ export default function Reports() {
               <div className="form-group">
                 <label htmlFor="report-type">{t('reports.type')}</label>
                 <select id="report-type" value={reportType} onChange={(event) => setReportType(event.target.value)}>
-                  <option value="monthly">{t('reports.monthly')}</option>
+                  <option value="quarterly">{t('reports.quarterly')}</option>
                   <option value="annual">{t('reports.annual')}</option>
                 </select>
               </div>
-              {reportType === 'monthly' && (
+              {reportType === 'quarterly' && (
                 <div className="form-group">
-                  <label htmlFor="report-month">{t('reports.month')}</label>
-                  <select id="report-month" value={month} onChange={(event) => setMonth(event.target.value)}>
-                    {Array.from({ length: 12 }, (_, index) => index + 1).map((monthNumber) => (
-                      <option key={monthNumber} value={monthNumber}>{monthName(monthNumber)}</option>
+                  <label htmlFor="report-quarter">{t('reports.quarter')}</label>
+                  <select id="report-quarter" value={quarter} onChange={(event) => setQuarter(event.target.value)}>
+                    {[1, 2, 3, 4].map((quarterNumber) => (
+                      <option key={quarterNumber} value={quarterNumber}>
+                        {quarterRangeLabel(quarterNumber)}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -199,7 +205,7 @@ export default function Reports() {
               <span className="sr-only">{t('reports.type')}</span>
               <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                 <option value="all">{t('reports.allTypes')}</option>
-                <option value="monthly">{t('reports.monthly')}</option>
+                <option value="quarterly">{t('reports.quarterly')}</option>
                 <option value="annual">{t('reports.annual')}</option>
               </select>
             </label>

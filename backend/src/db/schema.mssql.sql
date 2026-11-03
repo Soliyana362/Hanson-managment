@@ -173,6 +173,8 @@ BEGIN
 END
 GO
 
+-- Keep existing monthly uploads and annual reports intact; new quarterly files
+-- are stored in employee_quarterly_reports.
 IF OBJECT_ID('dbo.employee_reports', 'U') IS NULL
 BEGIN
   CREATE TABLE employee_reports (
@@ -188,6 +190,23 @@ BEGIN
     created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120),
     CONSTRAINT UQ_employee_reports_period UNIQUE (user_id, report_year, report_month),
     CONSTRAINT CK_employee_reports_period CHECK ((report_type = 'monthly' AND report_month BETWEEN 1 AND 12) OR (report_type = 'annual' AND report_month = 0))
+  );
+END
+GO
+
+IF OBJECT_ID('dbo.employee_quarterly_reports', 'U') IS NULL
+BEGIN
+  CREATE TABLE employee_quarterly_reports (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    report_year INT NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+    report_quarter INT NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+    original_name NVARCHAR(255) NOT NULL,
+    mime_type NVARCHAR(100) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    data VARBINARY(MAX) NOT NULL,
+    created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120),
+    CONSTRAINT UQ_employee_quarterly_reports_period UNIQUE (user_id, report_year, report_quarter)
   );
 END
 GO

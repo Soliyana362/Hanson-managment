@@ -154,6 +154,8 @@ CREATE TABLE IF NOT EXISTS documents (
   created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
 );
 
+-- Keep existing monthly uploads and annual reports intact; new quarterly files
+-- are stored in employee_quarterly_reports.
 CREATE TABLE IF NOT EXISTS employee_reports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -167,6 +169,19 @@ CREATE TABLE IF NOT EXISTS employee_reports (
   created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
   UNIQUE (user_id, report_year, report_month),
   CHECK ((report_type = 'monthly' AND report_month BETWEEN 1 AND 12) OR (report_type = 'annual' AND report_month = 0))
+);
+
+CREATE TABLE IF NOT EXISTS employee_quarterly_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+  report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+  original_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  data BLOB NOT NULL,
+  created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+  UNIQUE (user_id, report_year, report_quarter)
 );
 
 CREATE TABLE IF NOT EXISTS vacancy_candidates (

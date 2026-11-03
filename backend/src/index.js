@@ -15,6 +15,7 @@ const vacancyRoutes = require('./routes/vacancies');
 const uploadRoutes = require('./routes/uploads');
 const letterRoutes = require('./routes/letters');
 const reportRoutes = require('./routes/reports');
+const planRoutes = require('./routes/plans');
 const { restoreLeaveStatuses } = require('./jobs/leave-status');
 
 const app = express();
@@ -132,6 +133,10 @@ app.use('/api/reports', (req, res, next) => {
   if (req.method === 'GET') return next();
   return uploadLimiter(req, res, next);
 });
+app.use('/api/plans', (req, res, next) => {
+  if (req.method === 'GET') return next();
+  return uploadLimiter(req, res, next);
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -143,6 +148,7 @@ app.use('/api/vacancies', vacancyRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/letters', letterRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/plans', planRoutes);
 
 app.use((err, _req, res, _next) => {
   if (err.type === 'entity.too.large') {

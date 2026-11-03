@@ -187,6 +187,18 @@ CREATE TABLE IF NOT EXISTS employee_quarterly_reports (
   UNIQUE (user_id, report_year, report_quarter)
 );
 
+CREATE TABLE IF NOT EXISTS company_plans (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  plan_year INTEGER NOT NULL CHECK (plan_year BETWEEN 1900 AND 2100),
+  original_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  data BYTEA NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS vacancy_candidates (
   id SERIAL PRIMARY KEY,
   vacancy_id INTEGER NOT NULL REFERENCES vacancies(id) ON DELETE CASCADE,

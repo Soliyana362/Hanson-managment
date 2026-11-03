@@ -102,8 +102,8 @@ export default function CooDashboard() {
           <p>{t('coo.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <Link to="/reports" className="btn btn-primary">{t('coo.reports')}</Link>
-          <Link to="/kpi" className="btn btn-secondary">{t('coo.plan')}</Link>
+          <Link to="/reports" className="btn btn-primary">{t('coo.addReport')}</Link>
+          <Link to="/plans" className="btn btn-secondary">{t('coo.addPlan')}</Link>
         </div>
       </div>
 

@@ -230,6 +230,22 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('dbo.company_plans', 'U') IS NULL
+BEGIN
+  CREATE TABLE company_plans (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title NVARCHAR(200) NOT NULL,
+    plan_year INT NOT NULL CHECK (plan_year BETWEEN 1900 AND 2100),
+    original_name NVARCHAR(255) NOT NULL,
+    mime_type NVARCHAR(100) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    data VARBINARY(MAX) NOT NULL,
+    created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120)
+  );
+END
+GO
+
 IF OBJECT_ID('dbo.vacancy_candidates', 'U') IS NULL
 BEGIN
   CREATE TABLE vacancy_candidates (

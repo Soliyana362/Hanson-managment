@@ -21,6 +21,7 @@ import Vacancies from './pages/Vacancies';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Reports from './pages/Reports';
+import Plans from './pages/Plans';
 
 export default function App() {
   const { user } = useAuth();
@@ -36,6 +37,11 @@ export default function App() {
       <Route path="/reports" element={
         <ProtectedRoute roles={['employee', 'manager', 'hr', 'coo']}>
           <Layout><Reports /></Layout>
+        </ProtectedRoute>
+      } />
+      <Route path="/plans" element={
+        <ProtectedRoute roles={['coo']}>
+          <Layout><Plans /></Layout>
         </ProtectedRoute>
       } />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

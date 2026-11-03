@@ -263,7 +263,7 @@ router.get('/', authenticate, authorize('employee', 'manager', 'hr', 'coo'), asy
   }
 });
 
-router.post('/', authenticate, authorize('employee', 'manager', 'hr'), uploadSingle(uploadReport, 'report'), async (req, res) => {
+router.post('/', authenticate, authorize('employee', 'manager', 'hr', 'coo'), uploadSingle(uploadReport, 'report'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Choose a report file to upload' });
   const period = parseReportPeriod(req.body);
   if (!period) return res.status(400).json({ error: 'Choose a valid report type, quarter, and date range' });

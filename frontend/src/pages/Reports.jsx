@@ -32,7 +32,7 @@ export default function Reports() {
   const [searchParams] = useSearchParams();
   const employeeIdFilter = searchParams.get('employeeId');
   const fileInput = useRef(null);
-  const canUpload = ['employee', 'manager', 'hr'].includes(user?.role) && !employeeIdFilter;
+  const canUpload = ['employee', 'manager', 'hr', 'coo'].includes(user?.role) && !employeeIdFilter;
   const canSeeTeam = ['manager', 'coo'].includes(user?.role);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -183,15 +183,15 @@ export default function Reports() {
     <div className="reports-page">
       <div className="page-header">
         <div>
-          <h1>{t('reports.title')}</h1>
-          <p>{t('reports.subtitle')}</p>
+          <h1>{user?.role === 'coo' ? t('reports.ceoTitle') : t('reports.title')}</h1>
+          <p>{user?.role === 'coo' ? t('reports.ceoSubtitle') : t('reports.subtitle')}</p>
         </div>
       </div>
 
       {canUpload && (
         <section className="card report-upload-card">
           <div className="report-section-heading">
-            <h2>{t('reports.submitTitle')}</h2>
+            <h2>{user?.role === 'coo' ? t('reports.ceoSubmitTitle') : t('reports.submitTitle')}</h2>
             <p>{t('reports.replaceHint')}</p>
           </div>
           <form onSubmit={handleUpload}>

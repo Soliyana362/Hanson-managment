@@ -173,6 +173,25 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('dbo.employee_reports', 'U') IS NULL
+BEGIN
+  CREATE TABLE employee_reports (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    report_type NVARCHAR(20) NOT NULL CHECK (report_type IN ('monthly', 'annual')),
+    report_year INT NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+    report_month INT NOT NULL DEFAULT 0,
+    original_name NVARCHAR(255) NOT NULL,
+    mime_type NVARCHAR(100) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    data VARBINARY(MAX) NOT NULL,
+    created_at NVARCHAR(19) DEFAULT CONVERT(NVARCHAR(19), GETDATE(), 120),
+    CONSTRAINT UQ_employee_reports_period UNIQUE (user_id, report_year, report_month),
+    CONSTRAINT CK_employee_reports_period CHECK ((report_type = 'monthly' AND report_month BETWEEN 1 AND 12) OR (report_type = 'annual' AND report_month = 0))
+  );
+END
+GO
+
 IF OBJECT_ID('dbo.documents', 'U') IS NULL
 BEGIN
   CREATE TABLE documents (
@@ -294,3 +313,4 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_documents_user' AND object_id = OBJECT_ID('dbo.documents'))
   CREATE INDEX idx_documents_user ON documents(user_id);
 GO
+

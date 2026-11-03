@@ -89,6 +89,11 @@ const uploadDocument = multer({
   fileFilter: documentFilter,
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
+const uploadReport = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: documentFilter,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+});
 // Leave proof is buffered so the file is only written to disk after the
 // request itself has been validated.
 const uploadLeaveDocument = multer({
@@ -186,6 +191,7 @@ module.exports = {
   makeStorage,
   uploadPhoto,
   uploadDocument,
+  uploadReport,
   uploadLeaveDocument,
   uploadSingle,
   resolveStoredPath,

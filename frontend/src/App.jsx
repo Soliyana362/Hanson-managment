@@ -20,6 +20,7 @@ import CooDashboard from './pages/CooDashboard';
 import Vacancies from './pages/Vacancies';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import Reports from './pages/Reports';
 
 export default function App() {
   const { user } = useAuth();
@@ -32,6 +33,11 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/reports" element={
+        <ProtectedRoute roles={['employee', 'manager', 'coo']}>
+          <Layout><Reports /></Layout>
+        </ProtectedRoute>
+      } />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
       <Route path="/dashboard" element={

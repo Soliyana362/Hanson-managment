@@ -154,6 +154,21 @@ CREATE TABLE IF NOT EXISTS documents (
   created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
 );
 
+CREATE TABLE IF NOT EXISTS employee_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  report_type VARCHAR(20) NOT NULL CHECK (report_type IN ('monthly', 'annual')),
+  report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
+  report_month INTEGER NOT NULL DEFAULT 0,
+  original_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  data BLOB NOT NULL,
+  created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+  UNIQUE (user_id, report_year, report_month),
+  CHECK ((report_type = 'monthly' AND report_month BETWEEN 1 AND 12) OR (report_type = 'annual' AND report_month = 0))
+);
+
 CREATE TABLE IF NOT EXISTS vacancy_candidates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vacancy_id INTEGER NOT NULL REFERENCES vacancies(id) ON DELETE CASCADE,

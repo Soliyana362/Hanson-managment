@@ -194,6 +194,11 @@ export default function Layout({ children }) {
               <NavLink to="/leave" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                 {t('nav.leave')}
               </NavLink>
+              {['employee', 'manager'].includes(user?.role) && (
+                <NavLink to="/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                  {t('nav.reports')}
+                </NavLink>
+              )}
             </>
           )}
           <NavLink to="/kpi" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
@@ -229,6 +234,9 @@ export default function Layout({ children }) {
               <div className="nav-divider">{t('nav.executive')}</div>
               <NavLink to="/coo" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                 {t('nav.cooDashboard')}
+              </NavLink>
+              <NavLink to="/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                {t('nav.reports')}
               </NavLink>
             </>
           )}

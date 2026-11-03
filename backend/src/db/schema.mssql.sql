@@ -201,6 +201,7 @@ BEGIN
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     report_year INT NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
     report_quarter INT NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+    report_months NVARCHAR(20) NOT NULL,
     original_name NVARCHAR(255) NOT NULL,
     mime_type NVARCHAR(100) NOT NULL,
     size_bytes BIGINT NOT NULL,

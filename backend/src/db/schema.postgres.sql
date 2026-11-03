@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS employee_quarterly_reports (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
   report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+  report_months VARCHAR(20) NOT NULL,
   original_name VARCHAR(255) NOT NULL,
   mime_type VARCHAR(100) NOT NULL,
   size_bytes INTEGER NOT NULL,

@@ -67,6 +67,7 @@ function ensureReportTables() {
              user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
              report_year INT NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
              report_quarter INT NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+             report_months NVARCHAR(20) NOT NULL,
              original_name NVARCHAR(255) NOT NULL,
              mime_type NVARCHAR(100) NOT NULL,
              size_bytes BIGINT NOT NULL,
@@ -81,6 +82,7 @@ function ensureReportTables() {
              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
              report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
              report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+             report_months VARCHAR(20) NOT NULL,
              original_name VARCHAR(255) NOT NULL,
              mime_type VARCHAR(100) NOT NULL,
              size_bytes INTEGER NOT NULL,
@@ -93,6 +95,7 @@ function ensureReportTables() {
              user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
              report_year INTEGER NOT NULL CHECK (report_year BETWEEN 1900 AND 2100),
              report_quarter INTEGER NOT NULL CHECK (report_quarter BETWEEN 1 AND 4),
+             report_months VARCHAR(20) NOT NULL,
              original_name VARCHAR(255) NOT NULL,
              mime_type VARCHAR(100) NOT NULL,
              size_bytes INTEGER NOT NULL,
@@ -101,10 +104,37 @@ function ensureReportTables() {
              UNIQUE (user_id, report_year, report_quarter)
            )`;
 
-    reportTablesReady = Promise.all([
-      pool.query(createAnnualTable),
-      pool.query(createQuarterlyTable),
-    ]).catch((err) => {
+    reportTablesReady = (async () => {
+      await Promise.all([
+        pool.query(createAnnualTable),
+        pool.query(createQuarterlyTable),
+      ]);
+
+      if (IS_MSSQL) {
+        await pool.query(`
+          IF COL_LENGTH('dbo.employee_quarterly_reports', 'report_months') IS NULL
+            ALTER TABLE employee_quarterly_reports ADD report_months NVARCHAR(20) NULL
+        `);
+      } else if (IS_POSTGRES) {
+        await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN IF NOT EXISTS report_months VARCHAR(20)');
+      } else {
+        const columns = await pool.query("PRAGMA table_info('employee_quarterly_reports')");
+        if (!columns.rows.some((row) => row.name === 'report_months')) {
+          await pool.query('ALTER TABLE employee_quarterly_reports ADD COLUMN report_months VARCHAR(20)');
+        }
+      }
+
+      await pool.query(`
+        UPDATE employee_quarterly_reports
+        SET report_months = CASE report_quarter
+          WHEN 1 THEN '1,2,3'
+          WHEN 2 THEN '4,5,6'
+          WHEN 3 THEN '7,8,9'
+          WHEN 4 THEN '10,11,12'
+        END
+        WHERE report_months IS NULL OR report_months = ''
+      `);
+    })().catch((err) => {
       reportTablesReady = null;
       throw err;
     });
@@ -119,11 +149,15 @@ function parseReportPeriod(body) {
   if (!['quarterly', 'annual'].includes(reportType)) return null;
   if (!/^\d{4}$/.test(yearText) || !Number.isInteger(year) || year < 1900 || year > 2100) return null;
 
-  if (reportType === 'annual') return { reportType, year, quarter: 0 };
+  if (reportType === 'annual') return { reportType, year, quarter: 0, months: [] };
   const quarterText = String(body?.quarter || '').trim();
   const quarter = Number(quarterText);
   if (!/^[1-4]$/.test(quarterText) || !Number.isInteger(quarter)) return null;
-  return { reportType, year, quarter };
+  const monthTexts = String(body?.months || '').split(',').map((value) => value.trim());
+  if (monthTexts.length !== 3 || monthTexts.some((value) => !/^(0?[1-9]|1[0-2])$/.test(value))) return null;
+  const months = monthTexts.map(Number);
+  if (months[1] !== months[0] + 1 || months[2] !== months[1] + 1) return null;
+  return { reportType, year, quarter, months };
 }
 
 function parseReportKey(value) {
@@ -167,7 +201,7 @@ router.get('/', authenticate, authorize('employee', 'manager', 'coo'), async (re
       pool.query(
         `SELECT er.id, er.user_id, u.first_name, u.last_name, u.position,
                 d.name AS department_name, 'quarterly' AS report_type,
-                er.report_year, er.report_quarter, er.original_name,
+                er.report_year, er.report_quarter, er.report_months, er.original_name,
                 er.mime_type, er.size_bytes, er.created_at
          FROM employee_quarterly_reports er
          JOIN users u ON u.id = er.user_id
@@ -239,22 +273,23 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
          WHERE user_id = $1 AND report_year = $2 AND report_quarter = $3`,
         [req.user.id, period.year, period.quarter]
       );
-      const values = [period.year, period.quarter, safeOriginalName(req.file.originalname), req.file.mimetype, req.file.size, req.file.buffer];
+      const values = [period.year, period.quarter, period.months.join(','), safeOriginalName(req.file.originalname), req.file.mimetype, req.file.size, req.file.buffer];
       saved = existing.rows[0]
         ? await client.query(
           `UPDATE employee_quarterly_reports
-           SET report_year = $1, report_quarter = $2, original_name = $3,
-               mime_type = $4, size_bytes = $5, data = $6, created_at = CURRENT_TIMESTAMP
-           WHERE id = $7
-           RETURNING id, user_id, report_year, report_quarter,
+           SET report_year = $1, report_quarter = $2, report_months = $3,
+               original_name = $4, mime_type = $5, size_bytes = $6,
+               data = $7, created_at = CURRENT_TIMESTAMP
+           WHERE id = $8
+           RETURNING id, user_id, report_year, report_quarter, report_months,
                      original_name, mime_type, size_bytes, created_at`,
           [...values, existing.rows[0].id]
         )
         : await client.query(
           `INSERT INTO employee_quarterly_reports
-            (user_id, report_year, report_quarter, original_name, mime_type, size_bytes, data)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING id, user_id, report_year, report_quarter,
+            (user_id, report_year, report_quarter, report_months, original_name, mime_type, size_bytes, data)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id, user_id, report_year, report_quarter, report_months,
                      original_name, mime_type, size_bytes, created_at`,
           [req.user.id, ...values]
         );
@@ -267,6 +302,7 @@ router.post('/', authenticate, authorize('employee', 'manager'), uploadSingle(up
       id: `${period.reportType}-${saved.rows[0].id}`,
       report_type: period.reportType,
       report_quarter: period.quarter,
+      report_months: period.months.join(','),
     });
   } catch (err) {
     if (transactionStarted) {

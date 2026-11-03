@@ -62,9 +62,10 @@ router.get('/', authenticate, async (req, res) => {
         ),
         pool.query(
           `SELECT d.name AS department_name, COUNT(u.id) AS count
-           FROM users u
-           LEFT JOIN departments d ON d.id = u.department_id
-           WHERE u.role = 'employee' ${isManager ? 'AND u.manager_id = $1' : ''}
+           FROM departments d
+           LEFT JOIN users u
+             ON u.department_id = d.id
+            AND u.role = 'employee' ${isManager ? 'AND u.manager_id = $1' : ''}
            GROUP BY d.name ORDER BY d.name`,
           isManager ? [userId] : undefined
         ),

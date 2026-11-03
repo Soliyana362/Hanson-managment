@@ -791,6 +791,8 @@ export default {
     letters: 'CEO Letters',
     overview: 'Executive Overview',
     subtitle: 'View employee status across the organization. Read-only.',
+    reports: 'Reports',
+    plan: 'Plan',
     totalEmployees: 'Total Employees',
     active: 'Active',
     onLeave: 'On Leave',

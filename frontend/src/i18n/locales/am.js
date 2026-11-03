@@ -782,6 +782,8 @@ export default {
     letters: 'የዋና የስራ አስፈጻሚ መልዕክቶች',
     overview: 'የአመራር አጠቃላይ እይታ',
     subtitle: 'በድርጅቱ ውስጥ የሰራተኞችን ሁኔታ ይመልከቱ። የአናታች ማስታወቂያ።',
+    reports: 'ሪፖርቶች',
+    plan: 'ዕቅድ',
     totalEmployees: 'ጠቅላላ ሰራተኞች',
     active: 'እየሥራ ያሉ',
     onLeave: 'በእረፍት ላይ',

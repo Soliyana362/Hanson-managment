@@ -96,9 +96,15 @@ export default function CooDashboard() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>{t('coo.title')}</h1>
-        <p>{t('coo.subtitle')}</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+        <div>
+          <h1>{t('coo.title')}</h1>
+          <p>{t('coo.subtitle')}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <Link to="/reports" className="btn btn-primary">{t('coo.reports')}</Link>
+          <Link to="/kpi" className="btn btn-secondary">{t('coo.plan')}</Link>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>

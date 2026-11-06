@@ -1,32 +1,39 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import VerifyEmail from './pages/VerifyEmail';
-import Dashboard from './pages/Dashboard';
-import MyStatus from './pages/MyStatus';
-import LeaveRequests from './pages/LeaveRequests';
-import LeaveReview from './pages/LeaveReview';
-import KpiList from './pages/KpiList';
-import KpiForm from './pages/KpiForm';
-import KpiTemplateEdit from './pages/KpiTemplateEdit';
-import KpiTemplates from './pages/KpiTemplates';
-import Employees from './pages/Employees';
-import EmployeeDetail from './pages/EmployeeDetail';
-import CooDashboard from './pages/CooDashboard';
-import Vacancies from './pages/Vacancies';
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
-import Reports from './pages/Reports';
-import Plans from './pages/Plans';
+
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const MyStatus = lazy(() => import('./pages/MyStatus'));
+const LeaveRequests = lazy(() => import('./pages/LeaveRequests'));
+const LeaveReview = lazy(() => import('./pages/LeaveReview'));
+const KpiList = lazy(() => import('./pages/KpiList'));
+const KpiForm = lazy(() => import('./pages/KpiForm'));
+const KpiTemplateEdit = lazy(() => import('./pages/KpiTemplateEdit'));
+const KpiTemplates = lazy(() => import('./pages/KpiTemplates'));
+const Employees = lazy(() => import('./pages/Employees'));
+const EmployeeDetail = lazy(() => import('./pages/EmployeeDetail'));
+const CooDashboard = lazy(() => import('./pages/CooDashboard'));
+const Vacancies = lazy(() => import('./pages/Vacancies'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Plans = lazy(() => import('./pages/Plans'));
 
 export default function App() {
   const { user } = useAuth();
 
   return (
+    <Suspense fallback={(
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        Loading...
+      </div>
+    )}>
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
       <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
@@ -111,5 +118,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </Suspense>
   );
 }

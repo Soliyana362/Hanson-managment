@@ -10,21 +10,24 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let active = true;
     const loadSession = async () => {
-      try {
-        const csrf = await api.get('/auth/csrf');
-        if (active) setCsrfToken(csrf.data.csrfToken);
-      } catch {
-        // Login also returns a CSRF token, so the user can still sign in.
+      const [csrfResult, sessionResult] = await Promise.allSettled([
+        api.get('/auth/csrf'),
+        api.get('/auth/me'),
+      ]);
+
+      if (!active) return;
+
+      if (csrfResult.status === 'fulfilled') {
+        setCsrfToken(csrfResult.value.data.csrfToken);
       }
 
-      try {
-        const res = await api.get('/auth/me');
-        if (active) setUser(res.data);
-      } catch {
-        if (active) setUser(null);
-      } finally {
-        if (active) setLoading(false);
+      if (sessionResult.status === 'fulfilled') {
+        setUser(sessionResult.value.data);
+      } else {
+        setUser(null);
       }
+
+      setLoading(false);
     };
     loadSession();
 
